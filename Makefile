@@ -3,7 +3,7 @@
 .PHONY: help install requirements lint test up down clean
 
 help:  ## Show this help
-	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
 install:  ## Create the virtualenv and install all dependencies
 	uv sync
