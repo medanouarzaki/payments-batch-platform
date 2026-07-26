@@ -1,12 +1,15 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install lint test up down clean
+.PHONY: help install requirements lint test up down clean
 
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
 install:  ## Create the virtualenv and install all dependencies
 	uv sync
+
+requirements:  ## Regenerate requirements.txt from the lockfile
+	uv export --format requirements.txt --no-hashes -o requirements.txt
 
 lint:  ## Check formatting and lint rules
 	uv run ruff check .
