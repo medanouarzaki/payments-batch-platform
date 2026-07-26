@@ -1,8 +1,9 @@
-"""The package must be importable from an installed environment."""
+"""The installed package must expose the version its metadata declares."""
 
-import importlib
+from importlib.metadata import version
+
+import payments
 
 
-def test_payments_package_is_importable() -> None:
-    module = importlib.import_module("payments")
-    assert module.__name__ == "payments"
+def test_package_version_matches_distribution_metadata() -> None:
+    assert payments.__version__ == version("payments")
