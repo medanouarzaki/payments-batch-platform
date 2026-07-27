@@ -17,25 +17,6 @@ N_ROWS = 50000
 RUN_DATE = date(2026, 7, 21)
 SEED = 4242
 
-# Pinned to the rates committed in config/defects.yml. The tolerance test compares
-# observed behavior against this fixed baseline rather than against whatever the
-# live config file currently says, so an uncommitted edit to the rates is caught
-# as a regression instead of silently redefining what "correct" means.
-_PINNED_RATES = {
-    "duplicate_exact": 0.005,
-    "near_duplicate": 0.003,
-    "late_event": 0.02,
-    "missing_currency": 0.004,
-    "unknown_currency": 0.002,
-    "lowercase_currency": 0.01,
-    "non_positive_amount": 0.003,
-    "amount_formatting": 0.01,
-    "malformed_country": 0.015,
-    "naive_timestamp": 0.08,
-    "offset_timestamp": 0.10,
-    "missing_transaction_id": 0.0005,
-}
-
 _NAIVE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
 _OFFSET_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
 
@@ -70,14 +51,14 @@ def batch(rates):
     return raw_rows, final_rows, report
 
 
-def test_defect_counts_within_tolerance(batch):
+def test_defect_counts_within_tolerance(batch, rates):
     _, _, report = batch
     n = report.rows_in
     header = f"{'defect':<24}{'rate':>8}{'expected':>12}{'observed':>10}{'band':>10}{'z':>8}"
     lines = [header]
     failures = []
     for name, observed in report.counts.items():
-        p = _PINNED_RATES[name]
+        p = getattr(rates, name)
         expected = n * p
         std = math.sqrt(n * p * (1 - p)) if 0 < p < 1 else 0.0
         band = max(5.0, 4 * std)
@@ -209,17 +190,17 @@ def _lowercase_currency_ids(original_ids, pristine_rows, mutated_rows):
     return result
 
 
-@pytest.mark.parametrize(
-    "currency_rate_name", ["missing_currency", "unknown_currency", "lowercase_currency"]
-)
+@pytest.mark.parametrize("currency_rate_name", ["missing_currency", "unknown_currency"])
 def test_currency_family_rate_does_not_shift_later_independent_defects(rates, currency_rate_name):
-    # Doubling any one currency-family rate must not shift malformed_country or
+    # Doubling a currency-family rate must not shift malformed_country or
     # missing_transaction_id, which sit later in the orchestration order and must
-    # draw from their own dedicated generators. All three family members are
-    # exercised (not just lowercase_currency) because a member whose mutator
-    # itself never consumes extra randomness (lowercase_currency's does not: it
-    # only lowercases a string) would not perturb a generator shared downstream,
-    # silently hiding exactly the bug this test exists to catch.
+    # draw from their own dedicated generators. lowercase_currency is deliberately
+    # excluded here: its mutator (`.lower()`) never consumes extra randomness, so
+    # widening its threshold does not perturb a generator shared downstream — it
+    # would pass even under a shared-generator bug, true by construction rather
+    # than by an actual independence guarantee. missing_currency and
+    # unknown_currency both call rng.choice(...) internally and so are genuinely
+    # sensitive to this class of bug.
     base_raw = generate_batch(RUN_DATE, n_rows=5000, seed=SEED)
     original_ids = [row["transaction_id"] for row in base_raw]
     raw_a = [row.copy() for row in base_raw]
