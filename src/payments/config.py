@@ -11,6 +11,12 @@ import yaml
 
 _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
+_FAMILY_RATE_KEYS: dict[str, tuple[str, ...]] = {
+    "currency": ("missing_currency", "unknown_currency", "lowercase_currency"),
+    "amount": ("non_positive_amount", "amount_formatting"),
+    "timestamp": ("naive_timestamp", "offset_timestamp"),
+}
+
 _EXPECTED_RATE_KEYS = {
     "duplicate_exact",
     "near_duplicate",
@@ -157,6 +163,14 @@ def load_defect_rates(path: Path | None = None) -> DefectRates:
         raise ConfigError(f"defects config has unknown rate keys: {sorted(unknown_rate_keys)}")
 
     rate_values = {key: _require_rate(rates, key) for key in _EXPECTED_RATE_KEYS}
+
+    for family, keys in _FAMILY_RATE_KEYS.items():
+        family_sum = sum(rate_values[key] for key in keys)
+        if family_sum >= 1:
+            raise ConfigError(
+                f"defects config rates for the '{family}' family sum to {family_sum!r}, "
+                "which must be strictly less than 1"
+            )
 
     if "late_event" not in document:
         raise ConfigError("defects config is missing required key 'late_event'")
