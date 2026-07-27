@@ -49,6 +49,7 @@ class Settings:
     generator_seed: int
     rows_min: int
     rows_max: int
+    fx_api_base_url: str
 
     def ensure_directories(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -105,6 +106,8 @@ def get_settings() -> Settings:
     rows_min = _parse_int("PAYMENTS_ROWS_MIN", os.environ.get("PAYMENTS_ROWS_MIN", "30000"))
     rows_max = _parse_int("PAYMENTS_ROWS_MAX", os.environ.get("PAYMENTS_ROWS_MAX", "40000"))
 
+    fx_api_base_url = os.environ.get("PAYMENTS_FX_API_BASE_URL", "https://api.frankfurter.dev/v1")
+
     if rows_min <= 0:
         raise ConfigError(f"PAYMENTS_ROWS_MIN must be positive, got {rows_min}")
     if rows_max <= 0:
@@ -125,6 +128,7 @@ def get_settings() -> Settings:
         generator_seed=generator_seed,
         rows_min=rows_min,
         rows_max=rows_max,
+        fx_api_base_url=fx_api_base_url,
     )
 
 
