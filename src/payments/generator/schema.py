@@ -50,10 +50,22 @@ COUNTRIES: tuple[str, ...] = (
     "CH",
     "SE",
     "PL",
-    "US",
-    "CA",
     "MA",
 )
+
+IBAN_LENGTHS: dict[str, int] = {
+    "FR": 27,
+    "DE": 22,
+    "ES": 24,
+    "IT": 27,
+    "NL": 18,
+    "BE": 16,
+    "GB": 22,
+    "CH": 21,
+    "SE": 24,
+    "PL": 28,
+    "MA": 28,
+}
 
 
 class SchemaError(Exception):

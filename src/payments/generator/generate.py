@@ -11,27 +11,12 @@ from payments.generator.schema import (
     CHANNELS,
     COUNTRIES,
     CURRENCIES,
+    IBAN_LENGTHS,
     RAW_COLUMNS,
     REJECTION_REASONS,
     STATUSES,
     validate_row,
 )
-
-_IBAN_BBAN_LENGTH: dict[str, int] = {
-    "FR": 23,
-    "DE": 18,
-    "ES": 20,
-    "IT": 23,
-    "NL": 14,
-    "BE": 12,
-    "GB": 18,
-    "CH": 17,
-    "SE": 20,
-    "PL": 24,
-    "US": 20,
-    "CA": 20,
-    "MA": 20,
-}
 
 _WEEKDAY_FACTOR = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 0.55, 6: 0.40}
 
@@ -59,8 +44,10 @@ def _iban_check_digits(country: str, bban: str) -> str:
 
 
 def _generate_iban(rng: random.Random, country: str) -> str:
-    length = _IBAN_BBAN_LENGTH[country]
-    bban = "".join(str(rng.randint(0, 9)) for _ in range(length))
+    if country not in IBAN_LENGTHS:
+        raise ValueError(f"no IBAN length known for country {country!r}")
+    bban_length = IBAN_LENGTHS[country] - 4
+    bban = "".join(str(rng.randint(0, 9)) for _ in range(bban_length))
     check_digits = _iban_check_digits(country, bban)
     return f"{country}{check_digits}{bban}"
 

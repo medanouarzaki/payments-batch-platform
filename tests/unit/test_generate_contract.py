@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 
 from payments.generator import generate_batch
-from payments.generator.schema import CURRENCIES, RAW_COLUMNS, validate_row
+from payments.generator.schema import CURRENCIES, IBAN_LENGTHS, RAW_COLUMNS, validate_row
 
 
 def _iban_mod97_ok(iban: str) -> bool:
@@ -73,6 +73,13 @@ def test_debtor_and_creditor_accounts_differ():
     rows = generate_batch(date(2026, 7, 21), n_rows=3000, seed=1)
     for row in rows:
         assert row["debtor_account"] != row["creditor_account"]
+
+
+def test_iban_lengths_match_country_table():
+    rows = generate_batch(date(2026, 7, 21), n_rows=3000, seed=1)
+    for row in rows:
+        assert len(row["debtor_account"]) == IBAN_LENGTHS[row["debtor_country"]]
+        assert len(row["creditor_account"]) == IBAN_LENGTHS[row["creditor_country"]]
 
 
 def test_volume_varies_by_weekday_within_bounds():
