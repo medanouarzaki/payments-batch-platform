@@ -74,9 +74,13 @@ def land_batch(rows: list[dict], run_date: date, base_dir: Path | None = None) -
     # Write-then-swap: the new file is written and fully flushed before any
     # existing content in the partition is touched. Only once the write below
     # has succeeded do we discard whatever the partition held before, so a
-    # failed write never destroys previously landed data. We still never
-    # concatenate into an existing partition: on success, every file other
-    # than the freshly written one is removed before the swap.
+    # failed write never destroys previously landed data. The swap itself is
+    # a single os.replace(), which is atomic: final_path points either at the
+    # old complete file or at the new one, never at nothing and never at a
+    # partial write. Only after that swap has landed do we clear out
+    # whatever else the partition held, so even a failure during that final
+    # cleanup leaves final_path already holding the new data, not the old
+    # data or an empty partition.
     try:
         pq.write_table(table, tmp_path, compression="snappy")
     except Exception:
@@ -85,18 +89,19 @@ def land_batch(rows: list[dict], run_date: date, base_dir: Path | None = None) -
         raise
 
     try:
-        for existing in partition.iterdir():
-            if existing == tmp_path:
-                continue
-            if existing.is_dir():
-                shutil.rmtree(existing)
-            else:
-                existing.unlink()
         os.replace(tmp_path, final_path)
     except Exception:
         if tmp_path.exists():
             tmp_path.unlink()
         raise
+
+    for existing in partition.iterdir():
+        if existing == final_path:
+            continue
+        if existing.is_dir():
+            shutil.rmtree(existing)
+        else:
+            existing.unlink()
 
     data = final_path.read_bytes()
     return LandingResult(

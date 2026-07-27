@@ -102,6 +102,29 @@ def test_path_guard_rejects_base_dir_outside_raw_transactions_dir(tmp_path):
     assert sentinel.read_text() == "do not touch"
 
 
+def test_swap_lands_new_data_before_stale_cleanup_runs(raw_dir, monkeypatch):
+    good_result = land_batch(_rows(500, seed=1), RUN_DATE)
+
+    partition = partition_path(RUN_DATE)
+    stray_dir = partition / "stray-leftover"
+    stray_dir.mkdir()
+    (stray_dir / "junk.txt").write_text("junk")
+
+    def _boom(path):
+        raise RuntimeError("cleanup boom")
+
+    monkeypatch.setattr("payments.ingestion.land.shutil.rmtree", _boom)
+
+    with pytest.raises(RuntimeError):
+        land_batch(_rows(300, seed=2), RUN_DATE)
+
+    final_file = partition / "part-0000.parquet"
+    assert final_file.exists()
+    table = pq.read_table(final_file)
+    assert table.num_rows == 300
+    assert table.num_rows != good_result.rows
+
+
 def test_mismatched_ingestion_date_raises_and_writes_nothing(raw_dir):
     rows = _rows(10)
     rows[3]["ingestion_date"] = date(2026, 1, 1)
