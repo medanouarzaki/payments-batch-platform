@@ -6,7 +6,8 @@ import hashlib
 import random
 from datetime import UTC, date, datetime
 
-from payments.config import get_settings
+from payments.config import DefectRates, get_settings, load_defect_rates
+from payments.generator.defects import DefectReport, apply_defects
 from payments.generator.schema import (
     CHANNELS,
     COUNTRIES,
@@ -135,3 +136,19 @@ def generate_batch(
         rows.append(row)
 
     return rows
+
+
+def build_daily_batch(
+    run_date: date,
+    n_rows: int | None = None,
+    seed: int | None = None,
+    rates: DefectRates | None = None,
+) -> tuple[list[dict], DefectReport]:
+    settings = get_settings()
+    if seed is None:
+        seed = settings.generator_seed
+    if rates is None:
+        rates = load_defect_rates()
+
+    rows = generate_batch(run_date, n_rows=n_rows, seed=seed)
+    return apply_defects(rows, rates, seed, run_date)
