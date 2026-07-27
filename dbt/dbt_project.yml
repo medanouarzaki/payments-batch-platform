@@ -11,5 +11,19 @@ analysis-paths: ["analyses"]
 
 clean-targets: ["target", "dbt_packages"]
 
+seeds:
+  payments:
+    +quote_columns: false
+    dim_country:
+      +column_types:
+        alpha_2: varchar(2)
+        alpha_3: varchar(3)
+        country_name: varchar
+    dim_currency:
+      +column_types:
+        currency_code: varchar(3)
+        currency_name: varchar
+        minor_units: integer
+
 flags:
   send_anonymous_usage_stats: false
