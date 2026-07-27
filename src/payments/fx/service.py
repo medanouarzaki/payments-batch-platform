@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -11,6 +12,15 @@ import duckdb
 from payments.fx import calendar
 from payments.fx.cache import FxRateRow, create_schema, fetch_cached_rows, upsert_rows
 from payments.fx.client import ExchangeRates, FxPermanentError, FxTransientError, fetch_rates
+
+BASE_CURRENCY = "EUR"
+DEFAULT_QUOTE_CURRENCIES = ("USD", "GBP", "CHF", "SEK", "PLN", "JPY", "CAD", "MAD")
+
+
+@dataclass(frozen=True)
+class FetchFxResult:
+    rows: list[FxRateRow]
+    network_calls: int
 
 
 def _utc_now() -> datetime:
@@ -51,7 +61,7 @@ def fetch_fx_rates(
     base: str,
     fetch: Callable[..., ExchangeRates] = fetch_rates,
     now: Callable[[], datetime] = _utc_now,
-) -> list[FxRateRow]:
+) -> FetchFxResult:
     path = str(db_path)
     keys = [(requested_date, symbol) for requested_date in dates for symbol in symbols]
 
@@ -66,10 +76,12 @@ def fetch_fx_rates(
         if any(_needs_fetch((requested_date, symbol), cached) for symbol in symbols)
     ]
 
+    network_calls = 0
     new_rows: list[FxRateRow] = []
     for requested_date in missing_dates:
         fetched_at = now()
         try:
+            network_calls += 1
             result = fetch(requested_date.isoformat(), base=base, symbols=symbols)
         except FxPermanentError:
             classification = calendar.permanent_error_result()
@@ -106,4 +118,7 @@ def fetch_fx_rates(
     con = duckdb.connect(path)
     all_cached = fetch_cached_rows(con, keys)
     con.close()
-    return [all_cached[key] for key in keys]
+    return FetchFxResult(
+        rows=[all_cached[key] for key in keys],
+        network_calls=network_calls,
+    )

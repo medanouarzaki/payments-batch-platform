@@ -23,11 +23,18 @@ from payments.fx.client import (
     FxTransientError,
     fetch_rates,
 )
-from payments.fx.service import fetch_fx_rates
+from payments.fx.service import (
+    BASE_CURRENCY,
+    DEFAULT_QUOTE_CURRENCIES,
+    FetchFxResult,
+    fetch_fx_rates,
+)
 
 __all__ = [
+    "BASE_CURRENCY",
     "CARRY_FORWARD_MAX_DAYS",
     "CURRENCY_NOT_PUBLISHED",
+    "DEFAULT_QUOTE_CURRENCIES",
     "FETCH_FAILED",
     "NO_DATA_FOR_DATE",
     "RATE_TOO_OLD",
@@ -35,6 +42,7 @@ __all__ = [
     "STATUS_OK",
     "STATUS_UNAVAILABLE",
     "ExchangeRates",
+    "FetchFxResult",
     "FxClientError",
     "FxPermanentError",
     "FxRateRow",

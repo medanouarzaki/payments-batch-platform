@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect
+.PHONY: help install requirements lint test up down clean generate inspect fetch-fx
 
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -40,3 +40,9 @@ ifndef DATE
 	$(error DATE is required, usage: make inspect DATE=YYYY-MM-DD)
 endif
 	uv run python -m payments inspect --date $(DATE)
+
+fetch-fx:  ## Cache-first fetch of exchange rates (usage: make fetch-fx DATE=YYYY-MM-DD)
+ifndef DATE
+	$(error DATE is required, usage: make fetch-fx DATE=YYYY-MM-DD)
+endif
+	uv run python -m payments fetch-fx --date $(DATE)

@@ -6,11 +6,12 @@ import argparse
 import hashlib
 import json
 import time
-from datetime import date
+from datetime import date, timedelta
 
 import duckdb
 
-from payments.config import ConfigError
+from payments.config import ConfigError, get_settings
+from payments.fx import BASE_CURRENCY, DEFAULT_QUOTE_CURRENCIES, fetch_fx_rates
 from payments.generator import build_daily_batch
 from payments.ingestion import LandingError, land_batch, partition_path
 from payments.logging_setup import configure_logging, get_logger
@@ -62,6 +63,17 @@ def build_parser() -> argparse.ArgumentParser:
         "inspect", help="report the state of a partition without modifying it"
     )
     inspect_parser.add_argument("--date", required=True, help="partition date, YYYY-MM-DD")
+
+    fetch_fx_parser = subparsers.add_parser(
+        "fetch-fx", help="cache-first fetch of exchange rates for one date or a date range"
+    )
+    fetch_fx_parser.add_argument("--date", default=None, help="single date to fetch, YYYY-MM-DD")
+    fetch_fx_parser.add_argument(
+        "--from", dest="from_date", default=None, help="range start date, YYYY-MM-DD, inclusive"
+    )
+    fetch_fx_parser.add_argument(
+        "--to", dest="to_date", default=None, help="range end date, YYYY-MM-DD, inclusive"
+    )
 
     return parser
 
@@ -139,6 +151,64 @@ def _run_inspect(args: argparse.Namespace, logger) -> int:
     return EXIT_SUCCESS
 
 
+def _run_fetch_fx(args: argparse.Namespace, logger) -> int:
+    has_date = args.date is not None
+    has_from = args.from_date is not None
+    has_to = args.to_date is not None
+    has_range = has_from or has_to
+
+    if has_date == has_range or (has_range and has_from != has_to):
+        logger.error("provide exactly one of --date, or --from together with --to")
+        return EXIT_CONFIG_ERROR
+
+    try:
+        if has_date:
+            dates = [_parse_date(args.date)]
+        else:
+            from_date = _parse_date(args.from_date)
+            to_date = _parse_date(args.to_date)
+            dates = []
+            current = from_date
+            while current <= to_date:
+                dates.append(current)
+                current += timedelta(days=1)
+    except ValueError:
+        logger.error("invalid date value, expected YYYY-MM-DD")
+        return EXIT_INVALID_DATE
+
+    settings = get_settings()
+    start = time.perf_counter()
+    result = fetch_fx_rates(
+        settings.warehouse_path,
+        dates=dates,
+        symbols=DEFAULT_QUOTE_CURRENCIES,
+        base=BASE_CURRENCY,
+    )
+    duration = time.perf_counter() - start
+
+    fx_status_counts: dict[str, int] = {}
+    unavailable_reason_counts: dict[str, int] = {}
+    for row in result.rows:
+        fx_status_counts[row.fx_status] = fx_status_counts.get(row.fx_status, 0) + 1
+        if row.unavailable_reason is not None:
+            unavailable_reason_counts[row.unavailable_reason] = (
+                unavailable_reason_counts.get(row.unavailable_reason, 0) + 1
+            )
+
+    summary = {
+        "command": "fetch-fx",
+        "dates": [requested_date.isoformat() for requested_date in dates],
+        "rows_written": len(result.rows),
+        "fx_status_counts": fx_status_counts,
+        "unavailable_reason_counts": unavailable_reason_counts,
+        "network_calls": result.network_calls,
+        "duration_s": duration,
+    }
+
+    print(json.dumps(summary))
+    return EXIT_SUCCESS
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     try:
@@ -155,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_generate(args, logger)
         if args.command == "inspect":
             return _run_inspect(args, logger)
+        if args.command == "fetch-fx":
+            return _run_fetch_fx(args, logger)
         logger.error("unknown command %r", args.command)
         return EXIT_UNEXPECTED_ERROR
     except LandingError as exc:
