@@ -10,6 +10,7 @@ dependencies = [
     "pyarrow",
     "requests",
     "python-dotenv",
+    "pyyaml>=6.0",
 ]
 
 [dependency-groups]

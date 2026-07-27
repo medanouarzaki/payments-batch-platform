@@ -1,0 +1,170 @@
+"""Behavior of the payments CLI: exit codes, JSON summaries, subcommands."""
+
+import json
+import subprocess
+import sys
+
+import pytest
+
+from payments.cli import EXIT_CONFIG_ERROR, EXIT_LANDING_ERROR, build_parser, main
+from payments.config import ConfigError
+from payments.ingestion import LandingError
+
+
+@pytest.fixture
+def raw_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("PAYMENTS_DATA_DIR", str(tmp_path))
+    return tmp_path / "raw" / "transactions"
+
+
+def _stdout_lines(capsys):
+    return [line for line in capsys.readouterr().out.splitlines() if line]
+
+
+def test_generate_writes_partition_and_prints_single_json_line(raw_dir, capsys):
+    code = main(["generate", "--date", "2026-06-01", "--rows", "200"])
+    assert code == 0
+
+    partition = raw_dir / "ingestion_date=2026-06-01"
+    assert partition.is_dir()
+    assert (partition / "part-0000.parquet").exists()
+
+    lines = _stdout_lines(capsys)
+    assert len(lines) == 1
+    payload = json.loads(lines[0])
+    for key in (
+        "command",
+        "run_date",
+        "rows_in",
+        "rows_out",
+        "defect_counts",
+        "path",
+        "bytes",
+        "sha256",
+        "duration_s",
+    ):
+        assert key in payload, f"missing key {key!r}"
+    assert payload["command"] == "generate"
+    assert payload["run_date"] == "2026-06-01"
+
+
+def test_no_land_skips_write_and_omits_path(raw_dir, capsys):
+    code = main(["generate", "--date", "2026-06-01", "--rows", "100", "--no-land"])
+    assert code == 0
+    assert not raw_dir.exists()
+
+    lines = _stdout_lines(capsys)
+    assert len(lines) == 1
+    payload = json.loads(lines[0])
+    assert "path" not in payload
+    assert "bytes" not in payload
+    assert "sha256" not in payload
+
+
+def test_two_runs_produce_same_sha256(raw_dir, capsys):
+    code_1 = main(["generate", "--date", "2026-06-01", "--rows", "150", "--seed", "7"])
+    assert code_1 == 0
+    payload_1 = json.loads(_stdout_lines(capsys)[0])
+
+    code_2 = main(["generate", "--date", "2026-06-01", "--rows", "150", "--seed", "7"])
+    assert code_2 == 0
+    payload_2 = json.loads(_stdout_lines(capsys)[0])
+
+    assert payload_1["sha256"] == payload_2["sha256"]
+
+
+@pytest.mark.parametrize("bad_date", ["2026-13-45", "hier"])
+def test_malformed_date_returns_four_and_writes_nothing(raw_dir, bad_date):
+    code = main(["generate", "--date", bad_date, "--rows", "10"])
+    assert code == 4
+    assert not raw_dir.exists()
+
+
+@pytest.mark.parametrize("bad_rows", [0, -5])
+def test_non_positive_rows_returns_nonzero_and_writes_nothing(raw_dir, bad_rows):
+    code = main(["generate", "--date", "2026-06-01", "--rows", str(bad_rows)])
+    assert code != 0
+    assert not raw_dir.exists()
+
+
+def test_landing_error_returns_three(raw_dir, monkeypatch):
+    def _boom(rows, run_date, base_dir=None):
+        raise LandingError("simulated landing failure")
+
+    monkeypatch.setattr("payments.cli.land_batch", _boom)
+
+    code = main(["generate", "--date", "2026-06-01", "--rows", "10"])
+    assert code == EXIT_LANDING_ERROR
+    assert code == 3
+
+
+def test_config_error_returns_two(raw_dir, monkeypatch):
+    def _boom(run_date, n_rows=None, seed=None, rates=None):
+        raise ConfigError("simulated configuration failure")
+
+    monkeypatch.setattr("payments.cli.build_daily_batch", _boom)
+
+    code = main(["generate", "--date", "2026-06-01", "--rows", "10"])
+    assert code == EXIT_CONFIG_ERROR
+    assert code == 2
+
+
+def test_inspect_missing_partition_returns_nonzero(raw_dir):
+    code = main(["inspect", "--date", "2099-01-01"])
+    assert code != 0
+
+
+def test_inspect_after_generate_reports_row_count(raw_dir, capsys):
+    generate_code = main(["generate", "--date", "2026-06-01", "--rows", "200"])
+    assert generate_code == 0
+    generate_payload = json.loads(_stdout_lines(capsys)[0])
+
+    inspect_code = main(["inspect", "--date", "2026-06-01"])
+    assert inspect_code == 0
+    inspect_payload = json.loads(_stdout_lines(capsys)[0])
+
+    assert inspect_payload["rows"] == generate_payload["rows_out"]
+    assert inspect_payload["exists"] is True
+    assert inspect_payload["file_count"] == 1
+
+
+def test_stdout_never_carries_non_json_lines(raw_dir, capsys):
+    main(["generate", "--date", "2026-06-01", "--rows", "50"])
+    main(["inspect", "--date", "2026-06-01"])
+    main(["generate", "--date", "hier"])
+
+    out = capsys.readouterr().out
+    for line in out.splitlines():
+        if not line:
+            continue
+        json.loads(line)
+
+
+def test_module_execution_via_subprocess(tmp_path):
+    env = {**__import__("os").environ, "PAYMENTS_DATA_DIR": str(tmp_path)}
+    result = subprocess.run(
+        [sys.executable, "-m", "payments", "generate", "--date", "2026-06-01", "--rows", "50"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert result.returncode == 0
+    lines = [line for line in result.stdout.splitlines() if line]
+    assert len(lines) == 1
+    payload = json.loads(lines[0])
+    assert payload["command"] == "generate"
+
+
+def test_build_parser_exposes_subcommands_and_help_does_not_crash():
+    parser = build_parser()
+    subcommand_actions = [
+        action for action in parser._subparsers._group_actions if hasattr(action, "choices")
+    ]
+    assert subcommand_actions, "no subparsers action found"
+    choices = subcommand_actions[0].choices
+    assert set(choices) == {"generate", "inspect"}
+
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["--help"])
+    assert exc_info.value.code == 0

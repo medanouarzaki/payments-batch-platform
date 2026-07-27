@@ -526,6 +526,7 @@ dependencies = [
     { name = "duckdb" },
     { name = "pyarrow" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "requests" },
 ]
 
@@ -544,6 +545,7 @@ requires-dist = [
     { name = "duckdb" },
     { name = "pyarrow" },
     { name = "python-dotenv" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "requests" },
 ]
 

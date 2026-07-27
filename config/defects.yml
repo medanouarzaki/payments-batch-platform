@@ -1,0 +1,18 @@
+# Each rate below is the fraction of rows in a single daily batch that receives
+# the corresponding synthetic defect.
+rates:
+  duplicate_exact: 0.005
+  near_duplicate: 0.003
+  late_event: 0.02
+  missing_currency: 0.004
+  unknown_currency: 0.002
+  lowercase_currency: 0.01
+  non_positive_amount: 0.003
+  amount_formatting: 0.01
+  malformed_country: 0.015
+  naive_timestamp: 0.08
+  offset_timestamp: 0.10
+  missing_transaction_id: 0.0005
+late_event:
+  min_days: 1
+  max_days: 5
