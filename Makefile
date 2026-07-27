@@ -2,6 +2,10 @@
 
 .PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug
 
+DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
+	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
+	DBT_PROFILES_DIR="$(CURDIR)/dbt"
+
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
 
@@ -48,6 +52,4 @@ endif
 	uv run python -m payments fetch-fx --date $(DATE)
 
 dbt-debug:  ## Check the dbt profile can connect to the warehouse
-	PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
-	DBT_PROFILES_DIR="$(CURDIR)/dbt" \
-	uv run dbt debug --project-dir dbt
+	$(DBT_ENV) uv run dbt debug --project-dir dbt
