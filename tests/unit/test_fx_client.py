@@ -275,3 +275,21 @@ def test_request_url_contains_date_base_and_symbols():
     query = parse_qs(parsed.query)
     assert query["base"] == ["EUR"]
     assert query["symbols"] == ["USD,GBP"]
+
+
+@responses.activate
+def test_chunked_encoding_error_is_retried_as_transient():
+    responses.add(
+        responses.GET,
+        f"{FAKE_BASE_URL}/2026-06-01",
+        body=requests.exceptions.ChunkedEncodingError("connection broken"),
+    )
+    responses.add(
+        responses.GET,
+        f"{FAKE_BASE_URL}/2026-06-01",
+        json={"amount": 1.0, "base": "EUR", "date": "2026-06-01", "rates": {"USD": 1.1646}},
+        status=200,
+    )
+    result = fetch_rates("2026-06-01", base="EUR", symbols=["USD"], sleep=_no_sleep)
+    assert result.rates == {"USD": 1.1646}
+    assert len(responses.calls) == 2

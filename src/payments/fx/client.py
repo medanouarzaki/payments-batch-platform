@@ -76,7 +76,7 @@ def fetch_rates(
             response = http.get(
                 url, params=params, timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
             )
-        except (requests.ConnectionError, requests.Timeout) as exc:
+        except requests.RequestException as exc:
             attempt = _retry_or_raise(
                 attempt,
                 sleep,
