@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect fetch-fx
+.PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug
 
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -46,3 +46,8 @@ ifndef DATE
 	$(error DATE is required, usage: make fetch-fx DATE=YYYY-MM-DD)
 endif
 	uv run python -m payments fetch-fx --date $(DATE)
+
+dbt-debug:  ## Check the dbt profile can connect to the warehouse
+	PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
+	DBT_PROFILES_DIR="$(CURDIR)/dbt" \
+	uv run dbt debug --project-dir dbt
