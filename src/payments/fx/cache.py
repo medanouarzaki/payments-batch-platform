@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS fx_rates (
     effective_rate_date DATE,
     is_carried_forward BOOLEAN NOT NULL,
     fx_status VARCHAR NOT NULL,
-    fetched_at TIMESTAMP NOT NULL,
+    unavailable_reason VARCHAR,
+    fetched_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (rate_date, quote_currency)
 )
 """
@@ -25,14 +26,15 @@ CREATE TABLE IF NOT EXISTS fx_rates (
 _UPSERT_SQL = """
 INSERT INTO fx_rates (
     rate_date, quote_currency, base_currency, rate, effective_rate_date,
-    is_carried_forward, fx_status, fetched_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    is_carried_forward, fx_status, unavailable_reason, fetched_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (rate_date, quote_currency) DO UPDATE SET
     base_currency = excluded.base_currency,
     rate = excluded.rate,
     effective_rate_date = excluded.effective_rate_date,
     is_carried_forward = excluded.is_carried_forward,
     fx_status = excluded.fx_status,
+    unavailable_reason = excluded.unavailable_reason,
     fetched_at = excluded.fetched_at
 """
 
@@ -46,6 +48,7 @@ class FxRateRow:
     effective_rate_date: date | None
     is_carried_forward: bool
     fx_status: str
+    unavailable_reason: str | None
     fetched_at: datetime
 
 
@@ -69,6 +72,7 @@ def upsert_rows(con: duckdb.DuckDBPyConnection, rows: Sequence[FxRateRow]) -> No
                     row.effective_rate_date,
                     row.is_carried_forward,
                     row.fx_status,
+                    row.unavailable_reason,
                     row.fetched_at,
                 ],
             )
@@ -90,7 +94,7 @@ def fetch_cached_rows(
     rows = con.execute(
         f"""
         SELECT rate_date, quote_currency, base_currency, rate, effective_rate_date,
-               is_carried_forward, fx_status, fetched_at
+               is_carried_forward, fx_status, unavailable_reason, fetched_at
         FROM fx_rates
         WHERE rate_date IN ({placeholders})
         """,
@@ -106,7 +110,8 @@ def fetch_cached_rows(
             effective_rate_date=row[4],
             is_carried_forward=row[5],
             fx_status=row[6],
-            fetched_at=row[7],
+            unavailable_reason=row[7],
+            fetched_at=row[8],
         )
         for row in rows
     }
