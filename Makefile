@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean
+.PHONY: help install requirements lint test up down clean generate inspect
 
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -28,3 +28,15 @@ clean:  ## Remove generated data, caches and build artifacts
 	rm -rf data/raw data/serving data/warehouse.duckdb
 	rm -rf .pytest_cache .ruff_cache dbt/target dbt/logs
 	find . -type d -name __pycache__ -not -path './.venv/*' -exec rm -rf {} +
+
+generate:  ## Generate and land a daily batch (usage: make generate DATE=YYYY-MM-DD)
+ifndef DATE
+	$(error DATE is required, usage: make generate DATE=YYYY-MM-DD)
+endif
+	uv run python -m payments generate --date $(DATE)
+
+inspect:  ## Report the state of a partition (usage: make inspect DATE=YYYY-MM-DD)
+ifndef DATE
+	$(error DATE is required, usage: make inspect DATE=YYYY-MM-DD)
+endif
+	uv run python -m payments inspect --date $(DATE)
