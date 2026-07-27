@@ -43,6 +43,19 @@ def _jittered_delay(base_seconds: float, random_func: Callable[[], float]) -> fl
     return base_seconds * jitter
 
 
+def _retry_or_raise(
+    attempt: int,
+    sleep: Callable[[float], None],
+    random_func: Callable[[], float],
+    message: str,
+    cause: BaseException | None = None,
+) -> int:
+    if attempt >= MAX_ATTEMPTS:
+        raise FxTransientError(message) from cause
+    sleep(_jittered_delay(RETRY_BACKOFF_SECONDS[attempt - 1], random_func))
+    return attempt + 1
+
+
 def fetch_rates(
     date: str,
     *,
@@ -64,31 +77,46 @@ def fetch_rates(
                 url, params=params, timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
             )
         except (requests.ConnectionError, requests.Timeout) as exc:
-            if attempt >= MAX_ATTEMPTS:
-                raise FxTransientError(
-                    f"exchange rate API request failed after {attempt} attempts"
-                ) from exc
-            sleep(_jittered_delay(RETRY_BACKOFF_SECONDS[attempt - 1], random_func))
-            attempt += 1
+            attempt = _retry_or_raise(
+                attempt,
+                sleep,
+                random_func,
+                f"exchange rate API request failed after {attempt} attempts",
+                cause=exc,
+            )
             continue
 
         status = response.status_code
         if status == 200:
-            body = response.json()
+            try:
+                body = response.json()
+                effective_date = body["date"]
+                base_currency = body["base"]
+                rates = dict(body["rates"])
+            except (ValueError, KeyError) as exc:
+                # transient: a bad page clears on retry, a schema change surfaces after 4 tries
+                attempt = _retry_or_raise(
+                    attempt,
+                    sleep,
+                    random_func,
+                    f"exchange rate API returned an unreadable 200 body after {attempt} attempts",
+                    cause=exc,
+                )
+                continue
             return ExchangeRates(
                 requested_date=date,
-                effective_date=body["date"],
-                base_currency=body["base"],
-                rates=dict(body["rates"]),
+                effective_date=effective_date,
+                base_currency=base_currency,
+                rates=rates,
             )
 
         if status == 429 or status >= 500:
-            if attempt >= MAX_ATTEMPTS:
-                raise FxTransientError(
-                    f"exchange rate API returned {status} after {attempt} attempts"
-                )
-            sleep(_jittered_delay(RETRY_BACKOFF_SECONDS[attempt - 1], random_func))
-            attempt += 1
+            attempt = _retry_or_raise(
+                attempt,
+                sleep,
+                random_func,
+                f"exchange rate API returned {status} after {attempt} attempts",
+            )
             continue
 
         raise FxPermanentError(f"exchange rate API returned {status}: {response.text}")

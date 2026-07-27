@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random as random_module
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -214,3 +215,63 @@ def test_jitter_stays_within_25_percent_bounds_and_is_not_constant():
     delays = [_jittered_delay(1.0, rng.random) for _ in range(60)]
     assert all(0.75 <= delay <= 1.25 for delay in delays)
     assert len(set(delays)) > 1
+
+
+@responses.activate
+def test_200_with_unparsable_json_body_is_retried_then_raises_transient_error():
+    for _ in range(4):
+        responses.add(
+            responses.GET,
+            f"{FAKE_BASE_URL}/2026-06-01",
+            body="not json",
+            status=200,
+            content_type="text/plain",
+        )
+    with pytest.raises(FxTransientError):
+        fetch_rates("2026-06-01", base="EUR", symbols=["USD"], sleep=_no_sleep)
+    assert len(responses.calls) == 4
+
+
+@responses.activate
+def test_200_with_missing_required_key_is_retried_then_raises_transient_error():
+    for _ in range(4):
+        responses.add(
+            responses.GET,
+            f"{FAKE_BASE_URL}/2026-06-01",
+            json={"amount": 1.0, "base": "EUR", "date": "2026-06-01"},
+            status=200,
+        )
+    with pytest.raises(FxTransientError):
+        fetch_rates("2026-06-01", base="EUR", symbols=["USD"], sleep=_no_sleep)
+    assert len(responses.calls) == 4
+
+
+@responses.activate
+def test_500_retry_delays_are_jittered_within_expected_bounds():
+    for _ in range(4):
+        responses.add(responses.GET, f"{FAKE_BASE_URL}/2026-06-01", status=500)
+    waits: list[float] = []
+    with pytest.raises(FxTransientError):
+        fetch_rates("2026-06-01", base="EUR", symbols=["USD"], sleep=waits.append)
+    assert len(waits) == 3
+    assert 0.75 <= waits[0] <= 1.25
+    assert 1.5 <= waits[1] <= 2.5
+    assert 3.0 <= waits[2] <= 5.0
+    assert waits != [1.0, 2.0, 4.0]
+
+
+@responses.activate
+def test_request_url_contains_date_base_and_symbols():
+    responses.add(
+        responses.GET,
+        f"{FAKE_BASE_URL}/2026-06-01",
+        json={"amount": 1.0, "base": "EUR", "date": "2026-06-01", "rates": {"USD": 1.1646}},
+        status=200,
+    )
+    fetch_rates("2026-06-01", base="EUR", symbols=["USD", "GBP"], sleep=_no_sleep)
+    sent_url = responses.calls[0].request.url
+    parsed = urlparse(sent_url)
+    assert parsed.path.endswith("/2026-06-01")
+    query = parse_qs(parsed.query)
+    assert query["base"] == ["EUR"]
+    assert query["symbols"] == ["USD,GBP"]
