@@ -94,3 +94,31 @@ def test_min_days_greater_than_max_days_raises_config_error(tmp_path):
 def test_missing_file_raises_config_error(tmp_path):
     with pytest.raises(ConfigError):
         load_defect_rates(tmp_path / "does_not_exist.yml")
+
+
+def test_currency_family_rates_summing_to_one_point_two_raises_config_error(tmp_path):
+    document = _base_document()
+    document["rates"]["missing_currency"] = 0.4
+    document["rates"]["unknown_currency"] = 0.4
+    document["rates"]["lowercase_currency"] = 0.4
+    path = _write_yaml(tmp_path, document)
+    with pytest.raises(ConfigError, match="currency"):
+        load_defect_rates(path)
+
+
+def test_amount_family_rates_summing_to_one_point_two_raises_config_error(tmp_path):
+    document = _base_document()
+    document["rates"]["non_positive_amount"] = 0.6
+    document["rates"]["amount_formatting"] = 0.6
+    path = _write_yaml(tmp_path, document)
+    with pytest.raises(ConfigError, match="amount"):
+        load_defect_rates(path)
+
+
+def test_timestamp_family_rates_summing_to_one_point_two_raises_config_error(tmp_path):
+    document = _base_document()
+    document["rates"]["naive_timestamp"] = 0.6
+    document["rates"]["offset_timestamp"] = 0.6
+    path = _write_yaml(tmp_path, document)
+    with pytest.raises(ConfigError, match="timestamp"):
+        load_defect_rates(path)

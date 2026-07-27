@@ -11,11 +11,30 @@ import pytest
 from payments.config import load_defect_rates
 from payments.generator.defects import _parse_event_timestamp, apply_defects
 from payments.generator.generate import batch_fingerprint, build_daily_batch, generate_batch
-from payments.generator.schema import validate_row
+from payments.generator.schema import COUNTRIES, validate_row
 
 N_ROWS = 50000
 RUN_DATE = date(2026, 7, 21)
 SEED = 4242
+
+# Pinned to the rates committed in config/defects.yml. The tolerance test compares
+# observed behavior against this fixed baseline rather than against whatever the
+# live config file currently says, so an uncommitted edit to the rates is caught
+# as a regression instead of silently redefining what "correct" means.
+_PINNED_RATES = {
+    "duplicate_exact": 0.005,
+    "near_duplicate": 0.003,
+    "late_event": 0.02,
+    "missing_currency": 0.004,
+    "unknown_currency": 0.002,
+    "lowercase_currency": 0.01,
+    "non_positive_amount": 0.003,
+    "amount_formatting": 0.01,
+    "malformed_country": 0.015,
+    "naive_timestamp": 0.08,
+    "offset_timestamp": 0.10,
+    "missing_transaction_id": 0.0005,
+}
 
 _NAIVE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
 _OFFSET_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
@@ -51,14 +70,14 @@ def batch(rates):
     return raw_rows, final_rows, report
 
 
-def test_defect_counts_within_tolerance(batch, rates):
+def test_defect_counts_within_tolerance(batch):
     _, _, report = batch
     n = report.rows_in
     header = f"{'defect':<24}{'rate':>8}{'expected':>12}{'observed':>10}{'band':>10}{'z':>8}"
     lines = [header]
     failures = []
     for name, observed in report.counts.items():
-        p = getattr(rates, name)
+        p = _PINNED_RATES[name]
         expected = n * p
         std = math.sqrt(n * p * (1 - p)) if 0 < p < 1 else 0.0
         band = max(5.0, 4 * std)
@@ -157,24 +176,124 @@ def test_build_daily_batch_is_deterministic():
     assert report1 == report2
 
 
-def test_late_event_stream_is_independent_of_lowercase_currency_rate(rates):
+def _malformed_country_ids(original_ids, raw_rows):
+    result = set()
+    for original_id, row in zip(original_ids, raw_rows, strict=True):
+        if row["debtor_country"] not in COUNTRIES or row["creditor_country"] not in COUNTRIES:
+            result.add(original_id)
+    return result
+
+
+def _missing_transaction_id_ids(original_ids, raw_rows):
+    result = {
+        original_id
+        for original_id, row in zip(original_ids, raw_rows, strict=True)
+        if row["transaction_id"] is None
+    }
+    return result
+
+
+def _lowercase_currency_ids(original_ids, pristine_rows, mutated_rows):
+    result = set()
+    for original_id, pristine, mutated in zip(
+        original_ids, pristine_rows, mutated_rows, strict=True
+    ):
+        original_currency = pristine["currency"]
+        value = mutated["currency"]
+        if (
+            isinstance(value, str)
+            and value == original_currency.lower()
+            and value != original_currency
+        ):
+            result.add(original_id)
+    return result
+
+
+@pytest.mark.parametrize(
+    "currency_rate_name", ["missing_currency", "unknown_currency", "lowercase_currency"]
+)
+def test_currency_family_rate_does_not_shift_later_independent_defects(rates, currency_rate_name):
+    # Doubling any one currency-family rate must not shift malformed_country or
+    # missing_transaction_id, which sit later in the orchestration order and must
+    # draw from their own dedicated generators. All three family members are
+    # exercised (not just lowercase_currency) because a member whose mutator
+    # itself never consumes extra randomness (lowercase_currency's does not: it
+    # only lowercases a string) would not perturb a generator shared downstream,
+    # silently hiding exactly the bug this test exists to catch.
     base_raw = generate_batch(RUN_DATE, n_rows=5000, seed=SEED)
     original_ids = [row["transaction_id"] for row in base_raw]
     raw_a = [row.copy() for row in base_raw]
     raw_b = [row.copy() for row in base_raw]
 
     rates_a = rates
-    rates_b = replace(rates, lowercase_currency=min(1.0, rates.lowercase_currency * 2))
+    current_rate = getattr(rates, currency_rate_name)
+    rates_b = replace(rates, **{currency_rate_name: min(current_rate * 2, 0.9)})
 
     apply_defects(raw_a, rates_a, SEED, RUN_DATE)
     apply_defects(raw_b, rates_b, SEED, RUN_DATE)
 
-    def late_ids(raw_rows):
-        result = set()
-        for original_id, row in zip(original_ids, raw_rows, strict=True):
-            moment = _parse_event_timestamp(row["event_timestamp"])
-            if moment.date() < RUN_DATE:
-                result.add(original_id)
-        return result
+    assert _malformed_country_ids(original_ids, raw_a) == _malformed_country_ids(
+        original_ids, raw_b
+    )
+    assert _missing_transaction_id_ids(original_ids, raw_a) == _missing_transaction_id_ids(
+        original_ids, raw_b
+    )
 
-    assert late_ids(raw_a) == late_ids(raw_b)
+
+def test_late_event_rate_does_not_shift_lowercase_currency(rates):
+    base_raw = generate_batch(RUN_DATE, n_rows=5000, seed=SEED)
+    original_ids = [row["transaction_id"] for row in base_raw]
+    raw_a = [row.copy() for row in base_raw]
+    raw_b = [row.copy() for row in base_raw]
+
+    rates_a = rates
+    rates_b = replace(rates, late_event=min(rates.late_event * 2, 1.0))
+
+    apply_defects(raw_a, rates_a, SEED, RUN_DATE)
+    apply_defects(raw_b, rates_b, SEED, RUN_DATE)
+
+    assert _lowercase_currency_ids(original_ids, base_raw, raw_a) == _lowercase_currency_ids(
+        original_ids, base_raw, raw_b
+    )
+
+
+def test_defect_counts_vary_across_seeds_forbidding_fixed_size_allocation(batch, rates):
+    _, _, report_1 = batch
+    reports = [report_1]
+    for seed in (SEED + 1, SEED + 2):
+        raw_rows = generate_batch(RUN_DATE, n_rows=N_ROWS, seed=seed)
+        _, report = apply_defects(raw_rows, rates, seed, RUN_DATE)
+        reports.append(report)
+
+    differing = sum(
+        1 for name in reports[0].counts if reports[0].counts[name] != reports[1].counts[name]
+    )
+    assert differing >= 8, (
+        f"only {differing}/12 counts differ between two seeds: "
+        f"{reports[0].counts} vs {reports[1].counts}"
+    )
+
+    # A count identical across three independent seeds is the signature of a
+    # fixed-size allocation (round(rate * n) does not depend on the seed at
+    # all), not of Bernoulli variance: even the rarest defect ties across two
+    # draws only occasionally, and virtually never across three.
+    tied_across_all_seeds = [
+        name
+        for name in reports[0].counts
+        if reports[0].counts[name] == reports[1].counts[name] == reports[2].counts[name]
+    ]
+    assert not tied_across_all_seeds, (
+        f"counts identical across three independent seeds, looks like a fixed-size "
+        f"allocation rather than a Bernoulli draw: {tied_across_all_seeds}"
+    )
+
+
+def test_defect_counts_deviate_from_exact_rounded_expectation(batch, rates):
+    _, _, report = batch
+    n = report.rows_in
+    deviating = [
+        name
+        for name, observed in report.counts.items()
+        if observed != round(n * getattr(rates, name))
+    ]
+    assert len(deviating) >= 6, f"only {len(deviating)}/12 counts deviate: {deviating}"
