@@ -61,3 +61,14 @@ def test_settings_is_immutable():
     settings = get_settings()
     with pytest.raises(dataclasses.FrozenInstanceError):
         settings.log_level = "DEBUG"
+
+
+def test_fx_api_base_url_defaults_to_frankfurter_v1():
+    settings = get_settings()
+    assert settings.fx_api_base_url == "https://api.frankfurter.dev/v1"
+
+
+def test_fx_api_base_url_env_var_overrides_default(monkeypatch):
+    monkeypatch.setenv("PAYMENTS_FX_API_BASE_URL", "https://example.test/fx")
+    settings = get_settings()
+    assert settings.fx_api_base_url == "https://example.test/fx"
