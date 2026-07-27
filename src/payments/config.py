@@ -87,7 +87,9 @@ def get_settings() -> Settings:
         os.environ.get("PAYMENTS_PROJECT_ROOT", str(Path(__file__).resolve().parents[2]))
     )
     data_dir = Path(os.environ.get("PAYMENTS_DATA_DIR", str(project_root / "data")))
-    raw_transactions_dir = data_dir / "raw" / "transactions"
+    raw_transactions_dir = Path(
+        os.environ.get("PAYMENTS_RAW_TRANSACTIONS_DIR", str(data_dir / "raw" / "transactions"))
+    ).resolve()
     warehouse_path = Path(
         os.environ.get("PAYMENTS_WAREHOUSE_PATH", str(data_dir / "warehouse.duckdb"))
     ).resolve()
