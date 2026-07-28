@@ -21,6 +21,7 @@ x-airflow-common: &airflow-common
     - ./dbt:/opt/project/dbt
     - ./data:/opt/project/data
     - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/scripts:/opt/airflow/scripts:ro
     - ./logs:/opt/airflow/logs
   depends_on:
     postgres:
@@ -59,6 +60,7 @@ services:
             --role Admin \
             --email admin@example.com
         fi
+        airflow pools set warehouse 1 "Single-slot pool serializing all warehouse access"
 
   airflow-scheduler:
     <<: *airflow-common
