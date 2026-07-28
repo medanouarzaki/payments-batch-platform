@@ -95,6 +95,18 @@ def payments_daily():
         _run_dbt("build", "--select", "tag:marts", "--exclude", "fct_transactions")
 
     @task
+    def dq_gate(logical_date=None, params=None) -> None:
+        run_date = logical_date.strftime("%Y-%m-%d")
+        threshold = str(params["quarantine_threshold"])
+        _run_script(
+            "dq_gate.py",
+            "--ingestion-date",
+            run_date,
+            "--threshold",
+            threshold,
+        )
+
+    @task
     def run_summary() -> None:
         _run_script("warehouse_summary.py")
 
@@ -105,6 +117,7 @@ def payments_daily():
         >> dbt_staging()
         >> dbt_intermediate_and_facts()
         >> dbt_marts()
+        >> dq_gate()
         >> run_summary()
     )
 
