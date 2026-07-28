@@ -31,6 +31,8 @@ models:
       +tags: ["staging"]
     intermediate:
       +tags: ["intermediate"]
+    marts:
+      +tags: ["marts"]
 
 vars:
   dedup_window_days: 7

@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: fct_transactions
+    description: One row per deduplicated transaction, with its EUR-converted amount and the fx resolution status behind it.
+    columns:
+      - name: transaction_id
+        description: Raw transaction identifier, carried over from int_transactions_deduped.
+        tests:
+          - unique
+          - not_null
+      - name: event_timestamp_utc
+        description: Event timestamp converted to UTC, carried over from int_transactions_deduped.
+      - name: event_date_utc
+        description: Calendar date of event_timestamp_utc, carried over from int_transactions_deduped.
+        tests:
+          - not_null
+      - name: source_ingestion_date
+        description: Partition date of the landed batch this row came from.
+      - name: ingested_at
+        description: Timestamp at which the batch containing this row was ingested.
+      - name: source_batch_id
+        description: Identifier of the landed batch file this row came from.
+      - name: status
+        description: Transaction status as landed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ACCEPTED', 'REJECTED', 'PENDING']
+      - name: channel
+        description: Payment channel as landed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ONLINE', 'POS', 'ATM', 'TRANSFER', 'MOBILE']
+      - name: rejection_reason
+        description: Reason code as landed, populated only for rejected transactions.
+      - name: debtor_country
+        description: Resolved debtor alpha-2 country code, carried over from int_transactions_deduped.
+      - name: creditor_country
+        description: Resolved creditor alpha-2 country code, carried over from int_transactions_deduped.
+      - name: currency_code
+        description: Currency code of the native transaction amount.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_currency')
+                field: currency_code
+      - name: amount
+        description: Native transaction amount, copied unmodified from int_transactions_deduped.
+        tests:
+          - not_null
+      - name: native_minor_units
+        description: Number of minor units of currency_code as declared in dim_currency, null when the currency is absent from the dimension.
+      - name: has_sub_minor_unit_amount
+        description: True when amount carries more decimal precision than native_minor_units allows; since amount is stored as decimal(18,2), this can only be true for a currency whose minor_units is below two.
+      - name: amount_eur
+        description: Amount converted to EUR by dividing by the quoted rate and rounding to the EUR minor_units read from dim_currency, stored at a fixed two-decimal scale; null when no usable rate exists.
+      - name: fx_rate_used
+        description: Rate applied for the conversion, 1 for EUR rows, the quoted rate for ok and carried_forward, null otherwise.
+      - name: fx_rate_date_used
+        description: Date the applied rate actually comes from, event_date_utc for EUR rows, null when no usable rate exists.
+      - name: fx_rate_age_days
+        description: Number of days between event_date_utc and fx_rate_date_used, zero for EUR rows, null when no usable rate exists.
+      - name: fx_status
+        description: Fx resolution outcome for this row, one of base_currency, ok, carried_forward, unavailable, rate_missing.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['base_currency', 'ok', 'carried_forward', 'unavailable', 'rate_missing']
+      - name: row_hash
+        description: Row hash carried over from int_transactions_deduped, used upstream for deduplication.
+      - name: duplicate_count
+        description: Number of candidate rows that shared this transaction_id before deduplication picked a winner.
