@@ -25,5 +25,10 @@ seeds:
         currency_name: varchar
         minor_units: integer
 
+models:
+  payments:
+    staging:
+      +tags: ["staging"]
+
 flags:
   send_anonymous_usage_stats: false

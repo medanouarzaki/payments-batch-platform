@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: Typed and normalized daily transactions, with data quality flags and a stable row hash.
+    columns:
+      - name: transaction_id
+        description: Raw transaction identifier, null when the missing_transaction_id defect struck the row.
+      - name: event_timestamp_utc
+        description: Event timestamp converted to UTC, explicit regardless of the form it was written in.
+      - name: event_date_utc
+        description: Calendar date of event_timestamp_utc, derived without depending on the session time zone.
+      - name: amount
+        description: Amount parsed to decimal(18,2), null when the raw value could not be parsed.
+        tests:
+          - not_null:
+              config:
+                where: "is_valid"
+      - name: currency_code
+        description: Currency code uppercased and trimmed, null when the raw value was missing or blank.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_currency')
+                field: currency_code
+              config:
+                where: "is_valid"
+      - name: debtor_account
+        description: Debtor account identifier as landed, unmodified.
+      - name: creditor_account
+        description: Creditor account identifier as landed, unmodified.
+      - name: debtor_country
+        description: Debtor country code as landed, unmodified, including any internal spaces.
+      - name: creditor_country
+        description: Creditor country code as landed, unmodified, including any internal spaces.
+      - name: status
+        description: Transaction status as landed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ACCEPTED', 'REJECTED', 'PENDING']
+      - name: channel
+        description: Payment channel as landed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ONLINE', 'POS', 'ATM', 'TRANSFER', 'MOBILE']
+      - name: rejection_reason
+        description: Reason code as landed, populated only for rejected transactions.
+      - name: source_batch_id
+        description: Identifier of the landed batch file this row came from.
+      - name: ingested_at
+        description: Timestamp at which the batch containing this row was ingested.
+      - name: ingestion_date
+        description: Partition date of the landed batch this row came from.
+        tests:
+          - not_null
+      - name: dq_flags
+        description: Sorted, deduplicated list of data quality flags raised while normalizing this row.
+        tests:
+          - not_null
+      - name: is_valid
+        description: False when dq_flags contains at least one of the six blocking quarantine reasons.
+        tests:
+          - not_null
+      - name: row_hash
+        description: >
+          md5 hash of the raw column values (excluding ingested_at and ingestion_date), used
+          for deduplication downstream. Not declared unique here: an exact duplicate produced
+          by the duplicate_exact defect shares every source value with its original by
+          construction, so it necessarily shares the same row_hash; deduplicating on this
+          column is the job of a later model, not a data quality test on staging.
+        tests:
+          - not_null
