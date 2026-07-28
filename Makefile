@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug dbt-seed dbt-test
+.PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug dbt-seed dbt-test dbt-run dbt-build
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -59,3 +59,9 @@ dbt-seed:  ## Load reference seeds into the warehouse
 
 dbt-test:  ## Run dbt tests
 	$(DBT_ENV) uv run dbt test --project-dir dbt
+
+dbt-run:  ## Run dbt models
+	$(DBT_ENV) uv run dbt run --project-dir dbt
+
+dbt-build:  ## Seed, run and test the dbt project
+	$(DBT_ENV) uv run dbt build --project-dir dbt
