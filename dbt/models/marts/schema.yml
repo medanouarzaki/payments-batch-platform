@@ -112,3 +112,45 @@ models:
         description: Number of distinct native currency codes contributing to this group.
       - name: last_source_ingestion_date
         description: Most recent source_ingestion_date among the rows in this group.
+
+  - name: agg_fx_exposure_daily
+    description: One row per event date and currency code, aggregating fct_transactions to show fx exposure and conversion outcomes.
+    columns:
+      - name: event_date_utc
+        description: Calendar date of the transactions in this group.
+        tests:
+          - not_null
+      - name: currency_code
+        description: Native currency code of the transactions in this group.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_currency')
+                field: currency_code
+      - name: transaction_count
+        description: Number of fct_transactions rows in this group.
+        tests:
+          - not_null
+      - name: amount_native_total
+        description: Sum of native amount across this group; valid because currency_code is part of the grain, so every summed row shares the same unit.
+      - name: amount_eur_total
+        description: Sum of amount_eur across this group; only converted rows contribute, unconverted rows are counted separately.
+      - name: converted_transaction_count
+        description: Number of rows in this group whose amount_eur is not null.
+      - name: unconverted_transaction_count
+        description: Number of rows in this group whose amount_eur is null.
+      - name: fx_rate_used
+        description: Rate applied to this group's rows, taken by max because the rate is constant within a date and currency.
+      - name: fx_rate_date_used
+        description: Date the applied rate actually comes from, taken by max because it is constant within a date and currency.
+      - name: fx_rate_age_days
+        description: Number of days between event_date_utc and fx_rate_date_used, taken by max because it is constant within a date and currency.
+      - name: fx_status
+        description: Fx resolution outcome for this group, taken by max because it is constant within a date and currency.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['base_currency', 'ok', 'carried_forward', 'unavailable', 'rate_missing']
+      - name: is_carried_forward
+        description: True when this group's fx_status is carried_forward.
