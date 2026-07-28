@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: int_transactions_deduped
+    description: One winning row per transaction_id, selected deterministically among duplicates in a sliding window of staging.
+    columns:
+      - name: transaction_id
+        description: Transaction identifier, unique in this model by construction.
+        tests:
+          - unique
+          - not_null
+      - name: event_timestamp_utc
+        description: Event timestamp of the winning row, in UTC.
+      - name: event_date_utc
+        description: Event date of the winning row, in UTC.
+      - name: amount
+        description: Parsed amount of the winning row.
+      - name: currency_code
+        description: Normalized currency code of the winning row.
+      - name: debtor_account
+        description: Debtor account of the winning row.
+      - name: creditor_account
+        description: Creditor account of the winning row.
+      - name: debtor_country
+        description: Resolved debtor country code of the winning row.
+      - name: creditor_country
+        description: Resolved creditor country code of the winning row.
+      - name: status
+        description: Transaction status of the winning row.
+      - name: channel
+        description: Payment channel of the winning row.
+      - name: rejection_reason
+        description: Rejection reason of the winning row, populated only when status is rejected.
+      - name: source_batch_id
+        description: Source batch identifier of the winning row.
+      - name: ingested_at
+        description: Batch ingestion timestamp of the winning row.
+      - name: source_ingestion_date
+        description: The ingestion_date the winning row actually came from, which may differ from the transaction's original batch when a later duplicate wins.
+        tests:
+          - not_null
+      - name: dq_flags
+        description: Data quality flags of the winning row, carried over from staging.
+      - name: is_valid
+        description: Always true here, since this model only reads valid rows from staging.
+      - name: row_hash
+        description: Row hash of the winning row, carried over from staging.
+        tests:
+          - not_null
+      - name: duplicate_count
+        description: Number of valid staging rows that shared this transaction_id within the window this row was selected in.

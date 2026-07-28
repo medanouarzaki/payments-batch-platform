@@ -29,6 +29,11 @@ models:
   payments:
     staging:
       +tags: ["staging"]
+    intermediate:
+      +tags: ["intermediate"]
+
+vars:
+  dedup_window_days: 7
 
 flags:
   send_anonymous_usage_stats: false
