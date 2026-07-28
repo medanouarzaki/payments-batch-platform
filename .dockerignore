@@ -1,0 +1,13 @@
+.git/
+.venv/
+data/
+__pycache__/
+dbt/target/
+dbt_packages/
+logs/
+.env
+*.duckdb*
+*.bak
+.pytest_cache/
+.ruff_cache/
+.DS_Store
