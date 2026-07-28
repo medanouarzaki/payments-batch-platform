@@ -90,3 +90,67 @@ models:
           column is the job of a later model, not a data quality test on staging.
         tests:
           - not_null
+
+  - name: stg_fx_rates
+    description: Typed pass-through view over the fx_rates table, one row per rate_date and quote_currency.
+    columns:
+      - name: rate_date
+        description: Calendar date the rate applies to.
+        tests:
+          - not_null
+      - name: quote_currency
+        description: Currency being priced against base_currency.
+        tests:
+          - not_null
+      - name: base_currency
+        description: Currency the rate is expressed in.
+      - name: rate
+        description: Units of quote_currency per one unit of base_currency, null when unavailable.
+      - name: effective_rate_date
+        description: Date the rate value actually comes from, differs from rate_date when carried forward.
+      - name: is_carried_forward
+        description: True when rate_date had no published rate and the last known rate was carried forward.
+      - name: fx_status
+        description: Resolution outcome for this date and currency, one of ok, carried_forward, unavailable.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ok', 'carried_forward', 'unavailable']
+      - name: unavailable_reason
+        description: Reason code explaining why no rate could be resolved, null unless fx_status is unavailable.
+      - name: fetched_at
+        description: Timestamp the rate was fetched from or looked up in the cache.
+
+  - name: quarantine_transactions
+    description: Invalid rows from stg_transactions, carrying only the blocking reasons that quarantined them.
+    columns:
+      - name: row_hash
+        description: Row hash carried over from stg_transactions, identifies which staged row this is.
+        tests:
+          - not_null
+      - name: transaction_id
+        description: Raw transaction identifier, carried over from stg_transactions.
+      - name: ingestion_date
+        description: Partition date carried over from stg_transactions.
+        tests:
+          - not_null
+      - name: event_date_utc
+        description: Event date carried over from stg_transactions.
+      - name: event_timestamp_utc
+        description: Event timestamp carried over from stg_transactions.
+      - name: amount
+        description: Parsed amount carried over from stg_transactions.
+      - name: currency_code
+        description: Normalized currency code carried over from stg_transactions.
+      - name: status
+        description: Transaction status carried over from stg_transactions.
+      - name: channel
+        description: Payment channel carried over from stg_transactions.
+      - name: source_batch_id
+        description: Source batch identifier carried over from stg_transactions.
+      - name: ingested_at
+        description: Batch ingestion timestamp carried over from stg_transactions.
+      - name: quarantine_reasons
+        description: The subset of dq_flags that are blocking quarantine reasons for this row.
+        tests:
+          - not_null
