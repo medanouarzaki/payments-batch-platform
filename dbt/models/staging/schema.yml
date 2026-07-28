@@ -30,9 +30,27 @@ models:
       - name: creditor_account
         description: Creditor account identifier as landed, unmodified.
       - name: debtor_country
-        description: Debtor country code as landed, unmodified, including any internal spaces.
+        description: >
+          Resolved alpha-2 country code, null when the raw value (alpha-3, wrong case,
+          spaced, or otherwise) could not be matched against dim_country.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_country')
+                field: alpha_2
+              config:
+                where: "is_valid"
       - name: creditor_country
-        description: Creditor country code as landed, unmodified, including any internal spaces.
+        description: >
+          Resolved alpha-2 country code, null when the raw value (alpha-3, wrong case,
+          spaced, or otherwise) could not be matched against dim_country.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_country')
+                field: alpha_2
+              config:
+                where: "is_valid"
       - name: status
         description: Transaction status as landed.
         tests:
