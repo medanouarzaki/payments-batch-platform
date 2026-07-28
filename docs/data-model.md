@@ -103,6 +103,10 @@ from that command's output, not from the YAML source directly:
 `5`: the shift applied by `late_event` is a whole number of days drawn from
 that range.
 
+The later `event_timestamp` produced by `near_duplicate` is clamped to the
+same calendar day as the original row, so it never lands past that batch's
+ingestion cutoff.
+
 ## Mutually exclusive families
 
 Three of the twelve defects group into families whose members cannot both
