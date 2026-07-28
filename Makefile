@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug dbt-seed dbt-test dbt-run dbt-build
+.PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -65,3 +65,10 @@ dbt-run:  ## Run dbt models
 
 dbt-build:  ## Seed, run and test the dbt project
 	$(DBT_ENV) uv run dbt build --project-dir dbt
+
+init-env:  ## Generate a local .env with random Postgres and Airflow secrets
+	@if [ -f .env ]; then \
+		echo ".env already exists; remove it by hand before regenerating secrets" >&2; \
+		exit 1; \
+	fi
+	@AIRFLOW_UID=$$(id -u) uv run python -c "import os, secrets, base64; lines = ['POSTGRES_DB=airflow', 'POSTGRES_USER=airflow', f'POSTGRES_PASSWORD={secrets.token_urlsafe(24)}', f'AIRFLOW_FERNET_KEY={base64.urlsafe_b64encode(os.urandom(32)).decode()}', 'AIRFLOW_ADMIN_USER=airflow', f'AIRFLOW_ADMIN_PASSWORD={secrets.token_urlsafe(24)}', f'AIRFLOW_UID={os.environ[\"AIRFLOW_UID\"]}']; open('.env', 'w').write('\n'.join(lines) + '\n')"
