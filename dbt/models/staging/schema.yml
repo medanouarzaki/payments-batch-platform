@@ -1,0 +1,156 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: Typed and normalized daily transactions, with data quality flags and a stable row hash.
+    columns:
+      - name: transaction_id
+        description: Raw transaction identifier, null when the missing_transaction_id defect struck the row.
+      - name: event_timestamp_utc
+        description: Event timestamp converted to UTC, explicit regardless of the form it was written in.
+      - name: event_date_utc
+        description: Calendar date of event_timestamp_utc, derived without depending on the session time zone.
+      - name: amount
+        description: Amount parsed to decimal(18,2), null when the raw value could not be parsed.
+        tests:
+          - not_null:
+              config:
+                where: "is_valid"
+      - name: currency_code
+        description: Currency code uppercased and trimmed, null when the raw value was missing or blank.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_currency')
+                field: currency_code
+              config:
+                where: "is_valid"
+      - name: debtor_account
+        description: Debtor account identifier as landed, unmodified.
+      - name: creditor_account
+        description: Creditor account identifier as landed, unmodified.
+      - name: debtor_country
+        description: >
+          Resolved alpha-2 country code, null when the raw value (alpha-3, wrong case,
+          spaced, or otherwise) could not be matched against dim_country.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_country')
+                field: alpha_2
+              config:
+                where: "is_valid"
+      - name: creditor_country
+        description: >
+          Resolved alpha-2 country code, null when the raw value (alpha-3, wrong case,
+          spaced, or otherwise) could not be matched against dim_country.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_country')
+                field: alpha_2
+              config:
+                where: "is_valid"
+      - name: status
+        description: Transaction status as landed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ACCEPTED', 'REJECTED', 'PENDING']
+      - name: channel
+        description: Payment channel as landed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ONLINE', 'POS', 'ATM', 'TRANSFER', 'MOBILE']
+      - name: rejection_reason
+        description: Reason code as landed, populated only for rejected transactions.
+      - name: source_batch_id
+        description: Identifier of the landed batch file this row came from.
+      - name: ingested_at
+        description: Timestamp at which the batch containing this row was ingested.
+      - name: ingestion_date
+        description: Partition date of the landed batch this row came from.
+        tests:
+          - not_null
+      - name: dq_flags
+        description: Sorted, deduplicated list of data quality flags raised while normalizing this row.
+        tests:
+          - not_null
+      - name: is_valid
+        description: False when dq_flags contains at least one of the six blocking quarantine reasons.
+        tests:
+          - not_null
+      - name: row_hash
+        description: >
+          md5 hash of the raw column values (excluding ingested_at and ingestion_date), used
+          for deduplication downstream. Not declared unique here: an exact duplicate produced
+          by the duplicate_exact defect shares every source value with its original by
+          construction, so it necessarily shares the same row_hash; deduplicating on this
+          column is the job of a later model, not a data quality test on staging.
+        tests:
+          - not_null
+
+  - name: stg_fx_rates
+    description: Typed pass-through view over the fx_rates table, one row per rate_date and quote_currency.
+    columns:
+      - name: rate_date
+        description: Calendar date the rate applies to.
+        tests:
+          - not_null
+      - name: quote_currency
+        description: Currency being priced against base_currency.
+        tests:
+          - not_null
+      - name: base_currency
+        description: Currency the rate is expressed in.
+      - name: rate
+        description: Units of quote_currency per one unit of base_currency, null when unavailable.
+      - name: effective_rate_date
+        description: Date the rate value actually comes from, differs from rate_date when carried forward.
+      - name: is_carried_forward
+        description: True when rate_date had no published rate and the last known rate was carried forward.
+      - name: fx_status
+        description: Resolution outcome for this date and currency, one of ok, carried_forward, unavailable.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ok', 'carried_forward', 'unavailable']
+      - name: unavailable_reason
+        description: Reason code explaining why no rate could be resolved, null unless fx_status is unavailable.
+      - name: fetched_at
+        description: Timestamp the rate was fetched from or looked up in the cache.
+
+  - name: quarantine_transactions
+    description: Invalid rows from stg_transactions, carrying only the blocking reasons that quarantined them.
+    columns:
+      - name: row_hash
+        description: Row hash carried over from stg_transactions, identifies which staged row this is.
+        tests:
+          - not_null
+      - name: transaction_id
+        description: Raw transaction identifier, carried over from stg_transactions.
+      - name: ingestion_date
+        description: Partition date carried over from stg_transactions.
+        tests:
+          - not_null
+      - name: event_date_utc
+        description: Event date carried over from stg_transactions.
+      - name: event_timestamp_utc
+        description: Event timestamp carried over from stg_transactions.
+      - name: amount
+        description: Parsed amount carried over from stg_transactions.
+      - name: currency_code
+        description: Normalized currency code carried over from stg_transactions.
+      - name: status
+        description: Transaction status carried over from stg_transactions.
+      - name: channel
+        description: Payment channel carried over from stg_transactions.
+      - name: source_batch_id
+        description: Source batch identifier carried over from stg_transactions.
+      - name: ingested_at
+        description: Batch ingestion timestamp carried over from stg_transactions.
+      - name: quarantine_reasons
+        description: The subset of dq_flags that are blocking quarantine reasons for this row.
+        tests:
+          - not_null

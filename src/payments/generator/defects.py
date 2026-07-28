@@ -281,6 +281,8 @@ def inject_near_duplicate(rows: list[dict], rate: float, rng: random.Random) -> 
                 new_row["amount"] = f"{_parse_amount(row['amount']) + rng.uniform(1, 50):.2f}"
             moment = _parse_event_timestamp(row["event_timestamp"])
             bumped = moment + timedelta(minutes=rng.randint(1, 15))
+            day_end = moment.replace(hour=23, minute=59, second=59, microsecond=0)
+            bumped = min(bumped, day_end)
             new_row["event_timestamp"] = bumped.strftime("%Y-%m-%dT%H:%M:%SZ")
             new_rows.append(new_row)
     return new_rows

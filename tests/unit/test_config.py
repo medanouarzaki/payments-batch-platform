@@ -22,6 +22,20 @@ def test_data_dir_env_var_changes_derived_paths(monkeypatch, tmp_path):
     assert settings.serving_dir == tmp_path / "serving"
 
 
+def test_warehouse_path_env_var_overrides_default(monkeypatch, tmp_path):
+    override = tmp_path / "elsewhere.duckdb"
+    monkeypatch.setenv("PAYMENTS_WAREHOUSE_PATH", str(override))
+    settings = get_settings()
+    assert settings.warehouse_path == override
+
+
+def test_raw_transactions_dir_env_var_overrides_default(monkeypatch, tmp_path):
+    override = tmp_path / "elsewhere"
+    monkeypatch.setenv("PAYMENTS_RAW_TRANSACTIONS_DIR", str(override))
+    settings = get_settings()
+    assert settings.raw_transactions_dir == override
+
+
 def test_invalid_log_level_raises_config_error(monkeypatch):
     monkeypatch.setenv("PAYMENTS_LOG_LEVEL", "NOPE")
     with pytest.raises(ConfigError, match="PAYMENTS_LOG_LEVEL"):

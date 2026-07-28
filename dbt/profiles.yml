@@ -1,0 +1,9 @@
+payments:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('PAYMENTS_WAREHOUSE_PATH') }}"
+      threads: 1
+      settings:
+        TimeZone: UTC

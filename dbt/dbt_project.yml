@@ -1,0 +1,39 @@
+name: payments
+version: '1.0.0'
+config-version: 2
+profile: payments
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+
+clean-targets: ["target", "dbt_packages"]
+
+seeds:
+  payments:
+    +quote_columns: false
+    dim_country:
+      +column_types:
+        alpha_2: varchar(2)
+        alpha_3: varchar(3)
+        country_name: varchar
+    dim_currency:
+      +column_types:
+        currency_code: varchar(3)
+        currency_name: varchar
+        minor_units: integer
+
+models:
+  payments:
+    staging:
+      +tags: ["staging"]
+    intermediate:
+      +tags: ["intermediate"]
+
+vars:
+  dedup_window_days: 7
+
+flags:
+  send_anonymous_usage_stats: false

@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: raw
+    meta:
+      external_location: "read_parquet('{{ env_var('PAYMENTS_RAW_TRANSACTIONS_DIR') }}/**/*.parquet', hive_partitioning = true)"
+    description: Daily landed transaction batches read directly from Parquet.
+    tables:
+      - name: transactions
+        description: One row per transaction as landed by the daily batch job.
+
+  - name: warehouse
+    schema: main
+    description: Tables materialized directly in the DuckDB warehouse.
+    tables:
+      - name: fx_rates
+        description: Cached daily exchange rates fetched from the FX rate API.

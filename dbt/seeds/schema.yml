@@ -1,0 +1,40 @@
+version: 2
+
+seeds:
+  - name: dim_country
+    description: Reference table of ISO 3166-1 country codes covered by the generator.
+    columns:
+      - name: alpha_2
+        description: Two-letter ISO 3166-1 alpha-2 country code.
+        tests:
+          - unique
+          - not_null
+      - name: alpha_3
+        description: Three-letter ISO 3166-1 alpha-3 country code.
+        tests:
+          - unique
+          - not_null
+      - name: country_name
+        description: English short name of the country.
+        tests:
+          - not_null
+
+  - name: dim_currency
+    description: Reference table of ISO 4217 currency codes covered by the generator.
+    columns:
+      - name: currency_code
+        description: Three-letter ISO 4217 currency code.
+        tests:
+          - unique
+          - not_null
+      - name: currency_name
+        description: English name of the currency.
+        tests:
+          - not_null
+      - name: minor_units
+        description: Number of decimal places used by the currency's minor unit.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 2]

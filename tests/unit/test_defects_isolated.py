@@ -248,3 +248,12 @@ def test_inject_near_duplicate(clean_rows):
     rows_zero = _copy(clean_rows)
     added_zero = inject_near_duplicate(rows_zero, 0.0, random.Random(11))
     assert added_zero == []
+
+
+def test_inject_near_duplicate_never_crosses_into_the_next_day(clean_rows):
+    rows = _copy(clean_rows[:1])
+    rows[0]["event_timestamp"] = "2026-06-01T23:58:56Z"
+    added = inject_near_duplicate(rows, 1.0, random.Random(11))
+    assert len(added) == 1
+    new_moment = datetime.strptime(added[0]["event_timestamp"], "%Y-%m-%dT%H:%M:%SZ")
+    assert new_moment.date() == date(2026, 6, 1)
