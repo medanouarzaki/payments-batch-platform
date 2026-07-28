@@ -1,0 +1,3 @@
+{% macro quarantine_reasons() %}
+    ['MISSING_KEY', 'MISSING_CURRENCY', 'UNKNOWN_CURRENCY', 'NON_POSITIVE_AMOUNT', 'INVALID_AMOUNT', 'INVALID_TIMESTAMP']
+{% endmacro %}
