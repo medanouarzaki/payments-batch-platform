@@ -1,0 +1,89 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  image: payments-airflow:local
+  user: "${AIRFLOW_UID}:0"
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: utc
+    PYTHONPATH: /opt/project/src
+    DBT_PROFILES_DIR: /opt/project/dbt
+    PAYMENTS_WAREHOUSE_PATH: /opt/project/data/warehouse.duckdb
+    PAYMENTS_RAW_TRANSACTIONS_DIR: /opt/project/data/raw/transactions
+  volumes:
+    - ./src:/opt/project/src:ro
+    - ./config:/opt/project/config:ro
+    - ./dbt:/opt/project/dbt
+    - ./data:/opt/project/data
+    - ./airflow/dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16.14-bookworm@sha256:92620daddcd947f8d5ab5ba66e848702fe443d87fed30c4cea8e389fd78dfc55
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  airflow-init:
+    <<: *airflow-common
+    command:
+      - "bash"
+      - "-c"
+      - |
+        airflow db migrate
+        if airflow users list | grep -qw "${AIRFLOW_ADMIN_USER}"; then
+          echo "admin user already exists, skipping creation"
+        else
+          airflow users create \
+            --username "${AIRFLOW_ADMIN_USER}" \
+            --password "${AIRFLOW_ADMIN_PASSWORD}" \
+            --firstname admin \
+            --lastname admin \
+            --role Admin \
+            --email admin@example.com
+        fi
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+volumes:
+  postgres-data:
