@@ -154,3 +154,48 @@ models:
                 values: ['base_currency', 'ok', 'carried_forward', 'unavailable', 'rate_missing']
       - name: is_carried_forward
         description: True when this group's fx_status is carried_forward.
+
+  - name: data_quality_daily
+    description: One row per ingestion date, summarizing received, quarantined, and deduplicated row counts and rejection reasons.
+    columns:
+      - name: ingestion_date
+        description: Partition date of the landed batch this row summarizes.
+        tests:
+          - unique
+          - not_null
+      - name: received_row_count
+        description: Total number of stg_transactions rows landed for this ingestion date.
+        tests:
+          - not_null
+      - name: valid_row_count
+        description: Number of received rows that passed staging validation.
+      - name: quarantined_row_count
+        description: Number of received rows that failed staging validation and were quarantined.
+        tests:
+          - not_null
+      - name: duplicate_removed_count
+        description: Number of valid rows not kept as a deduplication winner, computed by subtraction since an exact duplicate shares its winner's row_hash.
+        tests:
+          - not_null
+      - name: deduplicated_row_count
+        description: Number of valid rows that won deduplication and were kept in fct_transactions.
+        tests:
+          - not_null
+      - name: late_row_count
+        description: Number of deduplicated rows whose event date precedes this ingestion date.
+      - name: rejection_rate
+        description: quarantined_row_count divided by received_row_count, null when no rows were received.
+      - name: late_rate
+        description: late_row_count divided by deduplicated_row_count, null when no rows were deduplicated.
+      - name: quarantined_missing_key_count
+        description: Number of quarantined rows carrying the MISSING_KEY reason.
+      - name: quarantined_missing_currency_count
+        description: Number of quarantined rows carrying the MISSING_CURRENCY reason.
+      - name: quarantined_unknown_currency_count
+        description: Number of quarantined rows carrying the UNKNOWN_CURRENCY reason.
+      - name: quarantined_non_positive_amount_count
+        description: Number of quarantined rows carrying the NON_POSITIVE_AMOUNT reason.
+      - name: quarantined_invalid_amount_count
+        description: Number of quarantined rows carrying the INVALID_AMOUNT reason.
+      - name: quarantined_invalid_timestamp_count
+        description: Number of quarantined rows carrying the INVALID_TIMESTAMP reason.
