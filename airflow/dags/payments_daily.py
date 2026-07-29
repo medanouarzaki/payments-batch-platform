@@ -47,7 +47,8 @@ def _run_script(script_name: str, *extra_args: str) -> str:
 
 
 def _run_dbt(*args: str) -> str:
-    return _run([DBT_VENV_DBT, *args, "--project-dir", DBT_PROJECT_DIR])
+    indirect_selection = ["--indirect-selection", "buildable"] if args[0] == "build" else []
+    return _run([DBT_VENV_DBT, *args, *indirect_selection, "--project-dir", DBT_PROJECT_DIR])
 
 
 @dag(
