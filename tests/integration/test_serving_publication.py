@@ -148,6 +148,11 @@ def test_a_failure_midway_leaves_no_temporary_and_keeps_the_previous_file(
 
 
 def test_replaying_a_publication_yields_the_same_content_and_bytes(tmp_path) -> None:
+    # Byte stability was measured to depend on the target file's basename, not on
+    # its directory: republishing under the same basename reproduces identical
+    # bytes, while publishing the same content under two different basenames does
+    # not. This is an observed property of duckdb 1.5.5, not a guarantee of the
+    # storage format, so this test republishes to the same path deliberately.
     source = tmp_path / "source.duckdb"
     _build_source(source)
     serving_path = tmp_path / "serving" / "marts.duckdb"
