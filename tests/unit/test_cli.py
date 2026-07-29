@@ -17,6 +17,7 @@ from payments.cli import (
 from payments.config import ConfigError
 from payments.fx import DEFAULT_QUOTE_CURRENCIES, FetchFxResult, FxRateRow
 from payments.ingestion import LandingError
+from payments.publish.export_marts import ExportResult
 
 
 @pytest.fixture
@@ -171,7 +172,7 @@ def test_build_parser_exposes_subcommands_and_help_does_not_crash():
     ]
     assert subcommand_actions, "no subparsers action found"
     choices = subcommand_actions[0].choices
-    assert set(choices) == {"generate", "inspect", "fetch-fx"}
+    assert set(choices) == {"generate", "inspect", "fetch-fx", "export-marts"}
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["--help"])
@@ -259,3 +260,28 @@ def test_fetch_fx_malformed_date_returns_invalid_date_code(raw_dir, monkeypatch)
 
     code = main(["fetch-fx", "--date", "2026-13-45"])
     assert code == EXIT_INVALID_DATE
+
+
+def test_export_marts_command_writes_the_serving_file(raw_dir, tmp_path, capsys, monkeypatch):
+    calls = []
+
+    def _stub_export_marts(warehouse_path, serving_path):
+        calls.append((warehouse_path, serving_path))
+        return ExportResult(
+            serving_path=serving_path,
+            row_counts={"agg_transactions_daily": 3, "dim_country": 2},
+        )
+
+    monkeypatch.setattr("payments.cli.export_marts", _stub_export_marts)
+
+    code = main(["export-marts"])
+    assert code == 0
+
+    assert len(calls) == 1
+    warehouse_path, serving_path = calls[0]
+    assert warehouse_path == tmp_path / "warehouse.duckdb"
+    assert serving_path == tmp_path / "serving" / "marts.duckdb"
+
+    lines = _stdout_lines(capsys)
+    assert "agg_transactions_daily 3" in lines
+    assert "dim_country 2" in lines

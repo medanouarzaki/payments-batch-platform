@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect fetch-fx dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
+.PHONY: help install requirements lint test up down clean generate inspect fetch-fx export-marts dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -50,6 +50,9 @@ ifndef DATE
 	$(error DATE is required, usage: make fetch-fx DATE=YYYY-MM-DD)
 endif
 	uv run python -m payments fetch-fx --date $(DATE)
+
+export-marts:  ## Publish warehouse marts to a separate serving file
+	uv run python -m payments export-marts
 
 dbt-debug:  ## Check the dbt profile can connect to the warehouse
 	$(DBT_ENV) uv run dbt debug --project-dir dbt
