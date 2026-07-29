@@ -113,6 +113,44 @@ models:
       - name: last_source_ingestion_date
         description: Most recent source_ingestion_date among the rows in this group.
 
+  - name: agg_transactions_channel_daily
+    description: One row per event date, channel, and status, aggregating fct_transactions.
+    columns:
+      - name: event_date_utc
+        description: Calendar date of the transactions in this group.
+        tests:
+          - not_null
+      - name: channel
+        description: Payment channel as landed.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ONLINE', 'POS', 'ATM', 'TRANSFER', 'MOBILE']
+      - name: status
+        description: Transaction status as landed.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ACCEPTED', 'REJECTED', 'PENDING']
+      - name: transaction_count
+        description: Number of fct_transactions rows in this group.
+        tests:
+          - not_null
+      - name: amount_eur_total
+        description: Sum of amount_eur across this group; only converted rows contribute, unconverted rows are counted separately.
+      - name: converted_transaction_count
+        description: Number of rows in this group whose amount_eur is not null.
+      - name: unconverted_transaction_count
+        description: Number of rows in this group whose amount_eur is null.
+      - name: late_transaction_count
+        description: Number of rows in this group whose source_ingestion_date is after event_date_utc.
+      - name: distinct_currency_count
+        description: Number of distinct native currency codes contributing to this group.
+      - name: last_source_ingestion_date
+        description: Most recent source_ingestion_date among the rows in this group.
+
   - name: agg_fx_exposure_daily
     description: One row per event date and currency code, aggregating fct_transactions to show fx exposure and conversion outcomes.
     columns:

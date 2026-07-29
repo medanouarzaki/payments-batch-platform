@@ -36,6 +36,7 @@ MARTS: tuple[str, ...] = (
     "agg_transactions_daily",
     "agg_fx_exposure_daily",
     "data_quality_daily",
+    "agg_transactions_channel_daily",
 )
 
 
