@@ -68,8 +68,13 @@ def isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> IsolatedEnv
 
 @pytest.fixture
 def seeded_fx_rates(isolated_env: IsolatedEnv):
-    def _seed(window_start: date, window_end: date, base_currency: str = "EUR") -> None:
-        con = duckdb.connect(str(isolated_env.warehouse_path))
+    def _seed(
+        window_start: date,
+        window_end: date,
+        base_currency: str = "EUR",
+        warehouse_path: Path | None = None,
+    ) -> None:
+        con = duckdb.connect(str(warehouse_path or isolated_env.warehouse_path))
         create_schema(con)
 
         fetched_at = datetime.now(UTC)
@@ -100,10 +105,17 @@ def seeded_fx_rates(isolated_env: IsolatedEnv):
 
 @pytest.fixture
 def run_dbt(isolated_env: IsolatedEnv) -> Iterator[callable]:
-    def _run(*args: str) -> None:
+    def _run(
+        *args: str,
+        warehouse_path: Path | None = None,
+        target_path: Path | None = None,
+        raw_transactions_dir: Path | None = None,
+    ) -> None:
         env = dict(os.environ)
-        env["PAYMENTS_WAREHOUSE_PATH"] = str(isolated_env.warehouse_path)
-        env["PAYMENTS_RAW_TRANSACTIONS_DIR"] = str(isolated_env.raw_transactions_dir)
+        env["PAYMENTS_WAREHOUSE_PATH"] = str(warehouse_path or isolated_env.warehouse_path)
+        env["PAYMENTS_RAW_TRANSACTIONS_DIR"] = str(
+            raw_transactions_dir or isolated_env.raw_transactions_dir
+        )
         env["DBT_PROFILES_DIR"] = str(DBT_PROJECT_DIR)
 
         indirect_selection = ["--indirect-selection", "buildable"] if args[0] == "build" else []
@@ -115,7 +127,7 @@ def run_dbt(isolated_env: IsolatedEnv) -> Iterator[callable]:
                 "--project-dir",
                 str(DBT_PROJECT_DIR),
                 "--target-path",
-                str(isolated_env.target_path),
+                str(target_path or isolated_env.target_path),
             ],
             capture_output=True,
             text=True,
