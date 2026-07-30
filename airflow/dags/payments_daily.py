@@ -55,7 +55,11 @@ def _run_dbt(*args: str) -> str:
     dag_id="payments_daily",
     schedule="@daily",
     start_date=datetime(2026, 4, 1, tzinfo=UTC),
-    catchup=True,
+    # Catch-up is triggered explicitly via the Makefile "backfill" target.
+    # An automatic catch-up would replay old days whose fx conversion no
+    # longer reproduces the original outcome, since it reads the rate
+    # cache in its current state rather than the state at the time.
+    catchup=False,
     max_active_runs=1,
     default_args=default_args,
     tags=["payments", "dbt", "warehouse"],
