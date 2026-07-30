@@ -108,6 +108,10 @@ def payments_daily():
         )
 
     @task
+    def publish_serving() -> None:
+        _run_script("publish_serving.py")
+
+    @task
     def run_summary() -> None:
         _run_script("warehouse_summary.py")
 
@@ -119,6 +123,7 @@ def payments_daily():
         >> dbt_intermediate_and_facts()
         >> dbt_marts()
         >> dq_gate()
+        >> publish_serving()
         >> run_summary()
     )
 
