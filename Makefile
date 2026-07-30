@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect fetch-fx export-marts dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
+.PHONY: help install requirements lint test up down clean generate inspect fetch-fx export-marts dashboard-install dashboard dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -53,6 +53,15 @@ endif
 
 export-marts:  ## Publish warehouse marts to a separate serving file
 	uv run python -m payments export-marts
+
+dashboard-install:  ## Create the dashboard virtualenv from its pinned requirements
+	uv venv .venv-dashboard --python 3.11
+	uv pip install --python .venv-dashboard/bin/python -r dashboard/requirements.txt
+
+dashboard:  ## Run the dashboard on port 8501 against the serving file
+	.venv-dashboard/bin/streamlit run dashboard/app.py \
+		--server.port 8501 --server.address 0.0.0.0 \
+		-- --serving-path "$$(uv run python -c 'from payments.config import get_settings; print(get_settings().serving_dir / "marts.duckdb")')"
 
 dbt-debug:  ## Check the dbt profile can connect to the warehouse
 	$(DBT_ENV) uv run dbt debug --project-dir dbt
