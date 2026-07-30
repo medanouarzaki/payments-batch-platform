@@ -20,11 +20,16 @@ def main() -> None:
     parser.add_argument("--serving-path", required=True)
     args = parser.parse_args()
 
-    mtime_ns = data.serving_mtime_ns(args.serving_path)
-
     st.title("Payments dashboard")
 
-    quality_frame = data.load_data_quality(args.serving_path, mtime_ns)
+    try:
+        mtime_ns = data.serving_mtime_ns(args.serving_path)
+    except FileNotFoundError as exc:
+        st.error(str(exc))
+        return
+
+    quality_data = data.load_data_quality(args.serving_path, mtime_ns)
+    quality_frame, _ = quality_data
     latest_ingestion = quality_frame["ingestion_date"].max()
     st.caption(f"Latest ingestion date: {latest_ingestion}")
 
@@ -44,7 +49,7 @@ def main() -> None:
     with tab_exposure:
         exposure.render(fx_frame, currency_frame)
     with tab_quality:
-        quality.render(quality_frame)
+        quality.render(quality_data)
 
 
 if __name__ == "__main__":

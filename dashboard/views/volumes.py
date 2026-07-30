@@ -16,8 +16,9 @@ def render(daily: pd.DataFrame, countries: pd.DataFrame) -> None:
     """
     st.header("Daily volumes")
 
-    min_date = daily["event_date_utc"].min()
-    max_date = daily["event_date_utc"].max()
+    event_dates = daily["event_date_utc"].dt.date
+    min_date = event_dates.min()
+    max_date = event_dates.max()
     start_date, end_date = st.slider(
         "Date range",
         min_value=min_date,
@@ -25,7 +26,7 @@ def render(daily: pd.DataFrame, countries: pd.DataFrame) -> None:
         value=(min_date, max_date),
     )
 
-    mask = (daily["event_date_utc"] >= start_date) & (daily["event_date_utc"] <= end_date)
+    mask = (event_dates >= start_date) & (event_dates <= end_date)
     filtered = daily.loc[mask]
 
     by_day = (
