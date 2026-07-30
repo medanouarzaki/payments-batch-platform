@@ -87,5 +87,24 @@ services:
       timeout: 10s
       retries: 12
 
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile
+    image: payments-dashboard:local
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data/serving:/srv:ro
+    command:
+      - "streamlit"
+      - "run"
+      - "app.py"
+      - "--server.port=8501"
+      - "--server.address=0.0.0.0"
+      - "--"
+      - "--serving-path"
+      - "/srv/marts.duckdb"
+
 volumes:
   postgres-data:
