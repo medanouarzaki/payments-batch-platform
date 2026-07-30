@@ -72,7 +72,7 @@ def load_fx_exposure(serving_path: str, mtime_ns: int) -> pd.DataFrame:
     con = _connection(serving_path, mtime_ns)
     return con.execute(
         "select event_date_utc, currency_code, transaction_count, "
-        "amount_native_total, amount_eur_total, fx_status "
+        "amount_native_total, amount_eur_total, fx_status, is_carried_forward "
         "from agg_fx_exposure_daily"
     ).df()
 
@@ -82,7 +82,11 @@ def load_data_quality(serving_path: str, mtime_ns: int) -> pd.DataFrame:
     con = _connection(serving_path, mtime_ns)
     return con.execute(
         "select ingestion_date, received_row_count, quarantined_row_count, "
-        "rejection_rate, late_rate from data_quality_daily"
+        "duplicate_removed_count, late_row_count, rejection_rate, late_rate, "
+        "quarantined_missing_key_count, quarantined_missing_currency_count, "
+        "quarantined_unknown_currency_count, quarantined_non_positive_amount_count, "
+        "quarantined_invalid_amount_count, quarantined_invalid_timestamp_count "
+        "from data_quality_daily"
     ).df()
 
 
@@ -90,3 +94,9 @@ def load_data_quality(serving_path: str, mtime_ns: int) -> pd.DataFrame:
 def load_countries(serving_path: str, mtime_ns: int) -> pd.DataFrame:
     con = _connection(serving_path, mtime_ns)
     return con.execute("select alpha_2, alpha_3, country_name from dim_country").df()
+
+
+@st.cache_data
+def load_currencies(serving_path: str, mtime_ns: int) -> pd.DataFrame:
+    con = _connection(serving_path, mtime_ns)
+    return con.execute("select currency_code, currency_name, minor_units from dim_currency").df()

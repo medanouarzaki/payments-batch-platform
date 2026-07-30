@@ -10,7 +10,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from views import volumes  # noqa: E402
+from views import channels, exposure, quality, volumes  # noqa: E402
 
 import data  # noqa: E402
 
@@ -24,13 +24,27 @@ def main() -> None:
 
     st.title("Payments dashboard")
 
-    quality = data.load_data_quality(args.serving_path, mtime_ns)
-    latest_ingestion = quality["ingestion_date"].max()
+    quality_frame = data.load_data_quality(args.serving_path, mtime_ns)
+    latest_ingestion = quality_frame["ingestion_date"].max()
     st.caption(f"Latest ingestion date: {latest_ingestion}")
 
     daily = data.load_daily_volumes(args.serving_path, mtime_ns)
     countries = data.load_countries(args.serving_path, mtime_ns)
-    volumes.render(daily, countries)
+    channel_frame = data.load_channel_rejections(args.serving_path, mtime_ns)
+    fx_frame = data.load_fx_exposure(args.serving_path, mtime_ns)
+    currency_frame = data.load_currencies(args.serving_path, mtime_ns)
+
+    tab_volumes, tab_channels, tab_exposure, tab_quality = st.tabs(
+        ["Volumes", "Channels", "FX exposure", "Data quality"]
+    )
+    with tab_volumes:
+        volumes.render(daily, countries)
+    with tab_channels:
+        channels.render(channel_frame)
+    with tab_exposure:
+        exposure.render(fx_frame, currency_frame)
+    with tab_quality:
+        quality.render(quality_frame)
 
 
 if __name__ == "__main__":
