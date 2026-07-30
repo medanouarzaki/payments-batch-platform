@@ -147,12 +147,30 @@ def test_a_failure_midway_leaves_no_temporary_and_keeps_the_previous_file(
     assert serving_path.read_bytes() == previous_bytes
 
 
-def test_replaying_a_publication_yields_the_same_content_and_bytes(tmp_path) -> None:
-    # Byte stability was measured to depend on the target file's basename, not on
-    # its directory: republishing under the same basename reproduces identical
-    # bytes, while publishing the same content under two different basenames does
-    # not. This is an observed property of duckdb 1.5.5, not a guarantee of the
-    # storage format, so this test republishes to the same path deliberately.
+def test_consecutive_publications_yield_identical_bytes(tmp_path) -> None:
+    # Bytes were measured to be reproducible between two publications executed
+    # back to back, with no delay between them, but not necessarily between two
+    # publications separated by a longer time gap, even at a constant target
+    # path. This is an observed property of duckdb 1.5.5, not a guarantee of the
+    # storage format, so this test only claims byte equality for an immediate
+    # replay.
+    source = tmp_path / "source.duckdb"
+    _build_source(source)
+    serving_path = tmp_path / "serving" / "marts.duckdb"
+
+    export_marts(source, serving_path)
+    first_sha = _sha256(serving_path)
+
+    export_marts(source, serving_path)
+    second_sha = _sha256(serving_path)
+
+    assert first_sha == second_sha, "serving file bytes differ between two publications"
+
+
+def test_republishing_yields_identical_table_contents(tmp_path) -> None:
+    # Byte equality is not guaranteed across publications spaced apart in time,
+    # so the reliable invariant of a republication is the content fingerprint of
+    # each table, not the file's bytes. This test never compares a sha256.
     source = tmp_path / "source.duckdb"
     _build_source(source)
     serving_path = tmp_path / "serving" / "marts.duckdb"
@@ -161,19 +179,20 @@ def test_replaying_a_publication_yields_the_same_content_and_bytes(tmp_path) -> 
     first_con = duckdb.connect(str(serving_path), read_only=True)
     first_fingerprints = {table: table_fingerprint(first_con, table) for table in SERVING_TABLES}
     first_con.close()
-    first_sha = _sha256(serving_path)
+    first_inode = serving_path.stat().st_ino
 
+    export_marts(source, serving_path)
     export_marts(source, serving_path)
     second_con = duckdb.connect(str(serving_path), read_only=True)
     second_fingerprints = {table: table_fingerprint(second_con, table) for table in SERVING_TABLES}
     second_con.close()
-    second_sha = _sha256(serving_path)
+    second_inode = serving_path.stat().st_ino
 
+    assert second_inode != first_inode, "the serving file was not replaced"
     for table in SERVING_TABLES:
         assert first_fingerprints[table] == second_fingerprints[table], (
             f"fingerprint of {table} differs between passes"
         )
-    assert first_sha == second_sha, "serving file bytes differ between two publications"
 
 
 def test_a_reader_opened_before_a_replacement_keeps_answering(tmp_path) -> None:
