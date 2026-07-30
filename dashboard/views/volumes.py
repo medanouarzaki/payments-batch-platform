@@ -33,9 +33,11 @@ def render(daily: pd.DataFrame, countries: pd.DataFrame) -> None:
         filtered.groupby("event_date_utc")[["transaction_count", "amount_eur_total"]]
         .sum()
         .sort_index()
+        .reset_index()
     )
+    by_day["event_date_utc"] = by_day["event_date_utc"].dt.date
     st.subheader("By day")
-    st.dataframe(by_day)
+    st.dataframe(by_day, hide_index=True)
 
     # Left join: every row of filtered is kept, including the one whose
     # debtor_country is null. The missing country_name is only replaced with
@@ -47,6 +49,7 @@ def render(daily: pd.DataFrame, countries: pd.DataFrame) -> None:
         joined.groupby("country_label")[["transaction_count", "amount_eur_total"]]
         .sum()
         .sort_index()
+        .reset_index()
     )
     st.subheader("By country")
-    st.dataframe(by_country)
+    st.dataframe(by_country, hide_index=True)

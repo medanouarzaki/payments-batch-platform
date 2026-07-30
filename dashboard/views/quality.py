@@ -28,7 +28,8 @@ def render(quality_data: tuple[pd.DataFrame, pd.DataFrame]) -> None:
 
     st.subheader("Quarantine by reason")
     reasons = quality[list(QUARANTINE_REASON_COLUMNS)].sum()
-    st.dataframe(reasons)
+    reasons_display = reasons.rename_axis("reason").reset_index(name="quarantined_count")
+    st.dataframe(reasons_display, hide_index=True)
 
     reasons_sum = int(reasons.sum())
     quarantined_total = int(quality["quarantined_row_count"].sum())
@@ -55,4 +56,5 @@ def render(quality_data: tuple[pd.DataFrame, pd.DataFrame]) -> None:
     # partial subset of days.
     st.subheader("Degraded days (FX conversion)")
     st.metric("Degraded days", len(degraded))
-    st.dataframe(degraded)
+    degraded_display = degraded.assign(event_date_utc=degraded["event_date_utc"].dt.date)
+    st.dataframe(degraded_display, hide_index=True)

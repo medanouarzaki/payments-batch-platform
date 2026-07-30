@@ -98,3 +98,16 @@ def test_app_shows_a_readable_error_when_the_serving_file_is_missing(tmp_path) -
     assert len(app.exception) == 0
     assert len(app.error) == 1
     assert str(missing_path) in app.error[0].value
+
+
+def test_ingestion_date_caption_has_no_time_component(tmp_path) -> None:
+    serving_path = tmp_path / "marts.duckdb"
+    _build_serving(serving_path)
+
+    app = _run_app(str(serving_path))
+
+    ingestion_captions = [
+        c.value for c in app.caption if c.value.startswith("Latest ingestion date:")
+    ]
+    assert len(ingestion_captions) == 1
+    assert ingestion_captions[0] == "Latest ingestion date: 2026-01-01"

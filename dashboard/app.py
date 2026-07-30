@@ -30,7 +30,7 @@ def main() -> None:
 
     quality_data = data.load_data_quality(args.serving_path, mtime_ns)
     quality_frame, _ = quality_data
-    latest_ingestion = quality_frame["ingestion_date"].max()
+    latest_ingestion = quality_frame["ingestion_date"].max().date()
     st.caption(f"Latest ingestion date: {latest_ingestion}")
 
     daily = data.load_daily_volumes(args.serving_path, mtime_ns)

@@ -24,7 +24,9 @@ def render(fx: pd.DataFrame, currencies: pd.DataFrame) -> None:
             f"({int(carried['transaction_count'].sum())} transactions affected)."
         )
         st.subheader("Carried-forward rate rows")
-        st.dataframe(carried)
+        carried_display = carried.reset_index(drop=True)
+        carried_display["event_date_utc"] = carried_display["event_date_utc"].dt.date
+        st.dataframe(carried_display, hide_index=True)
     else:
         st.success("No row uses a carried-forward exchange rate.")
 
@@ -33,5 +35,6 @@ def render(fx: pd.DataFrame, currencies: pd.DataFrame) -> None:
         joined.groupby("currency_code")[["transaction_count", "amount_eur_total"]]
         .sum()
         .sort_index()
+        .reset_index()
     )
-    st.dataframe(by_currency)
+    st.dataframe(by_currency, hide_index=True)

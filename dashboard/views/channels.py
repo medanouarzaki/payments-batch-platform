@@ -23,7 +23,7 @@ def render(channel: pd.DataFrame) -> None:
     summary["rejection_rate"] = summary["rejected"] / summary["transaction_count"]
 
     st.subheader("Overall rejection rate")
-    st.dataframe(summary.sort_index())
+    st.dataframe(summary.sort_index().reset_index(), hide_index=True)
 
     st.subheader("Rejection rate over time")
     by_day = channel.groupby(["event_date_utc", "channel"])["transaction_count"].sum()
