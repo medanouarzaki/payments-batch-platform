@@ -5,12 +5,6 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-# A day is considered "degraded" when its rejection_rate exceeds 2% (0.02).
-# The sample data shows daily rejection rates in the roughly 0.8%-1.1% range,
-# so this threshold is well above routine noise and flags a genuine outlier
-# rather than ordinary day-to-day variation.
-DEGRADED_REJECTION_RATE_THRESHOLD = 0.02
-
 QUARANTINE_REASON_COLUMNS = (
     "quarantined_missing_key_count",
     "quarantined_missing_currency_count",
@@ -21,23 +15,44 @@ QUARANTINE_REASON_COLUMNS = (
 )
 
 
-def render(quality: pd.DataFrame) -> None:
+def render(quality_data: tuple[pd.DataFrame, pd.DataFrame]) -> None:
     """Render the four quality indicator families.
 
-    quality is a pre-loaded pandas frame; this function opens no connection.
-    Every quarantine reason column is shown, including those summing to zero.
+    quality_data is (quality, degraded): two pre-loaded pandas frames on two
+    different date axes, never joined here. quality is keyed by
+    ingestion_date. degraded is keyed by event_date_utc. Every quarantine
+    reason column is shown, including those summing to zero.
     """
+    quality, degraded = quality_data
     st.header("Data quality")
 
     st.subheader("Quarantine by reason")
     reasons = quality[list(QUARANTINE_REASON_COLUMNS)].sum()
     st.dataframe(reasons)
 
+    reasons_sum = int(reasons.sum())
+    quarantined_total = int(quality["quarantined_row_count"].sum())
+    gap = reasons_sum - quarantined_total
+    st.caption(
+        f"Sum of reasons ({reasons_sum}) vs quarantined_row_count "
+        f"({quarantined_total}): a gap of {gap}, fully measured but not "
+        "root-caused -- a plausible explanation is that some quarantined "
+        "rows trigger more than one reason at once, which this data does "
+        "not confirm or rule out."
+    )
+
     st.subheader("Lateness and duplicates")
     st.metric("Late rows", int(quality["late_row_count"].sum()))
     st.metric("Duplicates removed", int(quality["duplicate_removed_count"].sum()))
 
-    st.subheader("Degraded days")
-    degraded = quality.loc[quality["rejection_rate"] > DEGRADED_REJECTION_RATE_THRESHOLD]
+    # A day (on the event_date_utc axis of agg_fx_exposure_daily) is
+    # considered "degraded" when at least one row used a carried-forward
+    # exchange rate, or at least one row has no rate at all (fx_status =
+    # rate_missing). Measured at the lot 6.8 audit: 40 of 123 event dates
+    # qualify under this union, versus 35 for carried-forward alone and 5
+    # for missing-rate alone -- the union is the most inclusive of the three
+    # candidate definitions that each qualify a strictly positive, strictly
+    # partial subset of days.
+    st.subheader("Degraded days (FX conversion)")
     st.metric("Degraded days", len(degraded))
     st.dataframe(degraded)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 import duckdb
@@ -125,19 +126,28 @@ def test_load_data_quality_keeps_zero_count_reasons(tmp_path) -> None:
     )
     con.execute(
         "insert into data_quality_daily values "
-        "(date '2026-01-01', 100, 5, 1, 2, 0.05, 0.02, 5, 0, 0, 0, 0, 0), "
+        "(date '2026-01-01', 100, 5, 1, 2, 0.05, 0.03, 5, 0, 0, 0, 0, 0), "
         "(date '2026-01-02', 200, 3, 0, 1, 0.015, 0.005, 3, 0, 0, 0, 0, 0)"
+    )
+    con.execute(
+        "create table agg_fx_exposure_daily ("
+        "event_date_utc date, currency_code varchar, transaction_count integer, "
+        "amount_native_total decimal(38,2), amount_eur_total decimal(38,2), "
+        "fx_status varchar, is_carried_forward boolean)"
     )
     con.close()
 
-    frame = data.load_data_quality(str(serving_path), data.serving_mtime_ns(str(serving_path)))
+    quality, degraded = data.load_data_quality(
+        str(serving_path), data.serving_mtime_ns(str(serving_path))
+    )
 
-    assert len(frame) == 2
-    assert frame["ingestion_date"].nunique() == 2
-    assert "quarantined_invalid_timestamp_count" in frame.columns
-    assert frame["quarantined_invalid_timestamp_count"].sum() == 0
-    assert "quarantined_missing_currency_count" in frame.columns
-    assert frame["quarantined_missing_currency_count"].sum() == 0
+    assert len(quality) == 2
+    assert len(degraded) == 0
+    assert quality["ingestion_date"].nunique() == 2
+    assert "quarantined_invalid_timestamp_count" in quality.columns
+    assert quality["quarantined_invalid_timestamp_count"].sum() == 0
+    assert "quarantined_missing_currency_count" in quality.columns
+    assert quality["quarantined_missing_currency_count"].sum() == 0
 
 
 def test_load_fx_exposure_keeps_the_carried_forward_flag(tmp_path) -> None:
@@ -161,3 +171,43 @@ def test_load_fx_exposure_keeps_the_carried_forward_flag(tmp_path) -> None:
     assert "is_carried_forward" in frame.columns
     flags = dict(zip(frame["currency_code"], frame["is_carried_forward"], strict=True))
     assert flags == {"USD": False, "GBP": True}
+
+
+def test_load_data_quality_identifies_degraded_days(tmp_path) -> None:
+    serving_path = tmp_path / "marts.duckdb"
+    con = duckdb.connect(str(serving_path))
+    con.execute(
+        "create table data_quality_daily ("
+        "ingestion_date date, received_row_count integer, "
+        "quarantined_row_count integer, duplicate_removed_count integer, "
+        "late_row_count integer, rejection_rate double, late_rate double, "
+        "quarantined_missing_key_count integer, "
+        "quarantined_missing_currency_count integer, "
+        "quarantined_unknown_currency_count integer, "
+        "quarantined_non_positive_amount_count integer, "
+        "quarantined_invalid_amount_count integer, "
+        "quarantined_invalid_timestamp_count integer)"
+    )
+    con.execute(
+        "insert into data_quality_daily values "
+        "(date '2026-01-01', 100, 0, 0, 0, 0.0, 0.0, 0, 0, 0, 0, 0, 0)"
+    )
+    con.execute(
+        "create table agg_fx_exposure_daily ("
+        "event_date_utc date, currency_code varchar, transaction_count integer, "
+        "amount_native_total decimal(38,2), amount_eur_total decimal(38,2), "
+        "fx_status varchar, is_carried_forward boolean)"
+    )
+    con.execute(
+        "insert into agg_fx_exposure_daily values "
+        "(date '2026-02-01', 'USD', 10, 100.0, 90.0, 'ok', false), "
+        "(date '2026-02-02', 'GBP', 4, 40.0, 45.0, 'carried_forward', true), "
+        "(date '2026-02-03', 'JPY', 2, 20.0, NULL, 'rate_missing', false)"
+    )
+    con.close()
+
+    mtime_ns = data.serving_mtime_ns(str(serving_path))
+    _, degraded = data.load_data_quality(str(serving_path), mtime_ns)
+
+    degraded_dates = set(degraded["event_date_utc"].dt.date)
+    assert degraded_dates == {date(2026, 2, 2), date(2026, 2, 3)}
