@@ -62,22 +62,22 @@ resolved as (
     select
         joined.*,
         case
-            when currency_code = 'EUR' then 'base_currency'
-            when fx_quote_currency is null then 'rate_missing'
-            when fx_rate is null then 'unavailable'
-            else fx_rate_status
+            when joined.currency_code = 'EUR' then 'base_currency'
+            when joined.fx_quote_currency is null then 'rate_missing'
+            when joined.fx_rate is null then 'unavailable'
+            else joined.fx_rate_status
         end as resolved_fx_status,
         case
-            when currency_code = 'EUR' then 1
-            when fx_quote_currency is null then null
-            when fx_rate is null then null
-            else fx_rate
+            when joined.currency_code = 'EUR' then 1
+            when joined.fx_quote_currency is null then null
+            when joined.fx_rate is null then null
+            else joined.fx_rate
         end as resolved_fx_rate_used,
         case
-            when currency_code = 'EUR' then event_date_utc
-            when fx_quote_currency is null then null
-            when fx_rate is null then null
-            else fx_effective_rate_date
+            when joined.currency_code = 'EUR' then joined.event_date_utc
+            when joined.fx_quote_currency is null then null
+            when joined.fx_rate is null then null
+            else joined.fx_effective_rate_date
         end as resolved_fx_rate_date_used
     from joined
 
