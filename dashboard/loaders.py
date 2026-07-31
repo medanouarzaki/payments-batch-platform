@@ -50,7 +50,7 @@ def _connection(serving_path: str, mtime_ns: int) -> duckdb.DuckDBPyConnection:
 def load_daily_volumes(serving_path: str, mtime_ns: int) -> pd.DataFrame:
     con = _connection(serving_path, mtime_ns)
     return con.execute(
-        "select event_date_utc, debtor_country, "
+        "select event_date_utc, debtor_countryx, "
         "sum(transaction_count) as transaction_count, "
         "sum(amount_eur_total) as amount_eur_total "
         "from agg_transactions_daily "
