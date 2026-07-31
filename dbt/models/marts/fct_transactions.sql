@@ -85,7 +85,7 @@ resolved as (
 
 final as (
 
-    select
+    select  -- fact table column order is the project's reference content fingerprint -- noqa: ST06
         transaction_id,
         event_timestamp_utc,
         event_date_utc,
@@ -110,7 +110,6 @@ final as (
             when resolved_fx_status = 'base_currency' then amount
             when resolved_fx_status in ('ok', 'carried_forward')
                 then cast(round(cast(amount as double) / fx_rate, eur_minor_units) as decimal(18,2))
-            else null
         end as amount_eur,
         resolved_fx_rate_used as fx_rate_used,
         resolved_fx_rate_date_used as fx_rate_date_used,
