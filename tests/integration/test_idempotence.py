@@ -15,6 +15,7 @@ import pytest
 
 from payments.generator import build_daily_batch
 from payments.ingestion import land_batch
+from payments.publish.fingerprint import table_fingerprint
 
 RUN_DATES: tuple[date, ...] = (date(2026, 3, 1), date(2026, 3, 2), date(2026, 3, 3))
 
@@ -23,15 +24,8 @@ MARTS: tuple[str, ...] = (
     "agg_transactions_daily",
     "agg_fx_exposure_daily",
     "data_quality_daily",
+    "agg_transactions_channel_daily",
 )
-
-
-def _table_fingerprint(con: duckdb.DuckDBPyConnection, table: str) -> str:
-    query = (
-        f"select md5(string_agg(h, '' order by h)) "
-        f"from (select md5(x::varchar) as h from {table} x)"
-    )
-    return con.sql(query).fetchone()[0]
 
 
 def _snapshot(warehouse_path) -> dict[str, tuple[int, str]]:
@@ -40,7 +34,7 @@ def _snapshot(warehouse_path) -> dict[str, tuple[int, str]]:
         return {
             mart: (
                 con.sql(f"select count(*) from {mart}").fetchone()[0],
-                _table_fingerprint(con, mart),
+                table_fingerprint(con, mart),
             )
             for mart in MARTS
         }

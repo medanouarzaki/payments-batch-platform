@@ -140,11 +140,3 @@ def run_dbt(isolated_env: IsolatedEnv) -> Iterator[callable]:
             )
 
     yield _run
-
-
-def table_fingerprint(con: duckdb.DuckDBPyConnection, table: str) -> str:
-    query = (
-        f"select md5(string_agg(h, '' order by h)) "
-        f"from (select md5(x::varchar) as h from {table} x)"
-    )
-    return con.sql(query).fetchone()[0]
