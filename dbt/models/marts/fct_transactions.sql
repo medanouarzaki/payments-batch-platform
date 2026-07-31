@@ -49,10 +49,10 @@ joined as (
         eur_scale.minor_units as eur_minor_units
     from transactions
     left join {{ ref('stg_fx_rates') }} as fx
-        on fx.rate_date = transactions.event_date_utc
-       and fx.quote_currency = transactions.currency_code
+        on transactions.event_date_utc = fx.rate_date
+       and transactions.currency_code = fx.quote_currency
     left join {{ ref('dim_currency') }} as currency
-        on currency.currency_code = transactions.currency_code
+        on transactions.currency_code = currency.currency_code
     cross join eur_scale
 
 ),

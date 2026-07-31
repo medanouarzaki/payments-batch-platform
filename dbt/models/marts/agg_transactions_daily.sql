@@ -37,7 +37,7 @@ scoped_facts as (
     select fct_transactions.*
     from {{ ref('fct_transactions') }} as fct_transactions
     inner join touched_event_dates
-        on touched_event_dates.event_date_utc = fct_transactions.event_date_utc
+        on fct_transactions.event_date_utc = touched_event_dates.event_date_utc
 
 ),
 
