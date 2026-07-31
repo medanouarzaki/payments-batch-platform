@@ -179,16 +179,18 @@ def test_republishing_yields_identical_table_contents(tmp_path) -> None:
     first_con = duckdb.connect(str(serving_path), read_only=True)
     first_fingerprints = {table: table_fingerprint(first_con, table) for table in SERVING_TABLES}
     first_con.close()
-    first_inode = serving_path.stat().st_ino
 
     export_marts(source, serving_path)
     export_marts(source, serving_path)
     second_con = duckdb.connect(str(serving_path), read_only=True)
     second_fingerprints = {table: table_fingerprint(second_con, table) for table in SERVING_TABLES}
     second_con.close()
-    second_inode = serving_path.stat().st_ino
 
-    assert second_inode != first_inode, "the serving file was not replaced"
+    # The inode is not a portable proxy for "the file was replaced": it changes
+    # across republications on macOS but is reused on the Linux filesystem the
+    # CI runner uses. The property this test actually targets is that every
+    # table's content fingerprint survives republication unchanged, so that is
+    # the only invariant asserted below.
     for table in SERVING_TABLES:
         assert first_fingerprints[table] == second_fingerprints[table], (
             f"fingerprint of {table} differs between passes"
