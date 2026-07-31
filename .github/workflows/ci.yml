@@ -32,4 +32,4 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run pytest -v
+      - run: make test
