@@ -19,6 +19,7 @@ dev = [
     "pytest-cov",
     "ruff",
     "responses",
+    "sqlfluff>=4.2.2",
 ]
 
 [build-system]

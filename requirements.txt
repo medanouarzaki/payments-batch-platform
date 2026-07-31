@@ -16,15 +16,23 @@ babel==2.18.0
     # via agate
 certifi==2026.7.22
     # via requests
+chardet==7.4.3
+    # via
+    #   diff-cover
+    #   sqlfluff
 charset-normalizer==3.4.9
     # via requests
-click==8.4.2
-    # via dbt-core
+click==8.3.3
+    # via
+    #   dbt-core
+    #   sqlfluff
 colorama==0.4.6
     # via
     #   click
     #   dbt-common
     #   pytest
+    #   sqlfluff
+    #   tqdm
 coverage==7.15.2
     # via pytest-cov
 daff==1.4.2
@@ -55,6 +63,8 @@ dbt-protos==1.0.541
     #   dbt-core
 deepdiff==8.6.2
     # via dbt-common
+diff-cover==10.4.1
+    # via sqlfluff
 duckdb==1.5.5
     # via
     #   dbt-duckdb
@@ -73,7 +83,9 @@ jinja2==3.1.6
     # via
     #   dbt-common
     #   dbt-core
+    #   diff-cover
     #   metricflow
+    #   sqlfluff
 jsonschema==4.26.0
     # via
     #   dbt-common
@@ -110,8 +122,12 @@ pathspec==1.0.4
     # via
     #   dbt-common
     #   dbt-core
+    #   sqlfluff
+platformdirs==4.11.0
+    # via sqlfluff
 pluggy==1.6.0
     # via
+    #   diff-cover
     #   pytest
     #   pytest-cov
 protobuf==6.33.6
@@ -129,7 +145,9 @@ pydantic==2.13.4
 pydantic-core==2.46.4
     # via pydantic
 pygments==2.20.0
-    # via pytest
+    # via
+    #   diff-cover
+    #   pytest
 pytest==9.1.1
     # via pytest-cov
 pytest-cov==7.1.0
@@ -155,6 +173,7 @@ pyyaml==6.0.3
     #   metricflow
     #   payments
     #   responses
+    #   sqlfluff
 rapidfuzz==3.14.5
     # via metricflow
 referencing==0.37.0
@@ -162,6 +181,8 @@ referencing==0.37.0
     #   jsonschema
     #   jsonschema-specifications
     #   metricflow
+regex==2026.7.19
+    # via sqlfluff
 requests==2.34.2
     # via
     #   dbt-common
@@ -179,16 +200,21 @@ six==1.17.0
     # via python-dateutil
 snowplow-tracker==1.1.0
     # via dbt-core
+sqlfluff==4.2.2
 sqlglot==30.13.0
     # via metricflow
 sqlparse==0.5.5
     # via dbt-core
 tabulate==0.10.0
     # via metricflow
+tblib==3.2.2
+    # via sqlfluff
 text-unidecode==1.3
     # via python-slugify
 tomli==2.4.1 ; python_full_version <= '3.11'
     # via coverage
+tqdm==4.70.0
+    # via sqlfluff
 typing-extensions==4.16.0
     # via
     #   dbt-adapters
