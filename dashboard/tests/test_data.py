@@ -11,10 +11,10 @@ from pathlib import Path
 import duckdb
 import pytest
 
-_DATA_PATH = Path(__file__).resolve().parents[1] / "data.py"
-_SPEC = importlib.util.spec_from_file_location("dashboard_data", _DATA_PATH)
-data = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(data)
+_LOADERS_PATH = Path(__file__).resolve().parents[1] / "loaders.py"
+_SPEC = importlib.util.spec_from_file_location("dashboard_loaders", _LOADERS_PATH)
+loaders = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(loaders)
 
 
 def _build_serving(path: Path) -> None:
@@ -37,7 +37,9 @@ def test_load_daily_volumes_returns_one_row_per_date_and_country(tmp_path) -> No
     serving_path = tmp_path / "marts.duckdb"
     _build_serving(serving_path)
 
-    frame = data.load_daily_volumes(str(serving_path), data.serving_mtime_ns(str(serving_path)))
+    frame = loaders.load_daily_volumes(
+        str(serving_path), loaders.serving_mtime_ns(str(serving_path))
+    )
 
     keys = list(zip(frame["event_date_utc"], frame["debtor_country"], strict=True))
     assert len(frame) == 3
@@ -48,7 +50,9 @@ def test_load_daily_volumes_converts_amounts_to_float(tmp_path) -> None:
     serving_path = tmp_path / "marts.duckdb"
     _build_serving(serving_path)
 
-    frame = data.load_daily_volumes(str(serving_path), data.serving_mtime_ns(str(serving_path)))
+    frame = loaders.load_daily_volumes(
+        str(serving_path), loaders.serving_mtime_ns(str(serving_path))
+    )
 
     assert frame["amount_eur_total"].dtype == "float64"
     assert frame["amount_eur_total"].sum() == pytest.approx(180.75)
@@ -59,8 +63,8 @@ def test_cache_key_changes_when_the_serving_file_is_replaced(tmp_path) -> None:
     replacement_path = tmp_path / "replacement.duckdb"
     _build_serving(serving_path)
 
-    first_mtime = data.serving_mtime_ns(str(serving_path))
-    first_frame = data.load_daily_volumes(str(serving_path), first_mtime)
+    first_mtime = loaders.serving_mtime_ns(str(serving_path))
+    first_frame = loaders.load_daily_volumes(str(serving_path), first_mtime)
     first_total = first_frame["transaction_count"].sum()
 
     con = duckdb.connect(str(replacement_path))
@@ -76,10 +80,10 @@ def test_cache_key_changes_when_the_serving_file_is_replaced(tmp_path) -> None:
     con.close()
     os.replace(replacement_path, serving_path)
 
-    second_mtime = data.serving_mtime_ns(str(serving_path))
+    second_mtime = loaders.serving_mtime_ns(str(serving_path))
     assert first_mtime != second_mtime, "cache key did not change after the file was replaced"
 
-    second_frame = data.load_daily_volumes(str(serving_path), second_mtime)
+    second_frame = loaders.load_daily_volumes(str(serving_path), second_mtime)
     second_total = second_frame["transaction_count"].sum()
 
     assert second_total == 999, (
@@ -92,7 +96,7 @@ def test_connection_is_read_only(tmp_path) -> None:
     serving_path = tmp_path / "marts.duckdb"
     _build_serving(serving_path)
 
-    con = data._connection(str(serving_path), data.serving_mtime_ns(str(serving_path)))
+    con = loaders._connection(str(serving_path), loaders.serving_mtime_ns(str(serving_path)))
 
     with pytest.raises(duckdb.Error):
         con.execute("create table not_allowed (a integer)")
@@ -106,7 +110,7 @@ def test_a_missing_serving_file_raises_a_clear_error(tmp_path) -> None:
     missing_path = tmp_path / "absent.duckdb"
 
     with pytest.raises(FileNotFoundError, match="serving file not found"):
-        data.serving_mtime_ns(str(missing_path))
+        loaders.serving_mtime_ns(str(missing_path))
 
 
 def test_load_data_quality_keeps_zero_count_reasons(tmp_path) -> None:
@@ -137,8 +141,8 @@ def test_load_data_quality_keeps_zero_count_reasons(tmp_path) -> None:
     )
     con.close()
 
-    quality, degraded = data.load_data_quality(
-        str(serving_path), data.serving_mtime_ns(str(serving_path))
+    quality, degraded = loaders.load_data_quality(
+        str(serving_path), loaders.serving_mtime_ns(str(serving_path))
     )
 
     assert len(quality) == 2
@@ -166,7 +170,7 @@ def test_load_fx_exposure_keeps_the_carried_forward_flag(tmp_path) -> None:
     )
     con.close()
 
-    frame = data.load_fx_exposure(str(serving_path), data.serving_mtime_ns(str(serving_path)))
+    frame = loaders.load_fx_exposure(str(serving_path), loaders.serving_mtime_ns(str(serving_path)))
 
     assert "is_carried_forward" in frame.columns
     flags = dict(zip(frame["currency_code"], frame["is_carried_forward"], strict=True))
@@ -206,8 +210,8 @@ def test_load_data_quality_identifies_degraded_days(tmp_path) -> None:
     )
     con.close()
 
-    mtime_ns = data.serving_mtime_ns(str(serving_path))
-    _, degraded = data.load_data_quality(str(serving_path), mtime_ns)
+    mtime_ns = loaders.serving_mtime_ns(str(serving_path))
+    _, degraded = loaders.load_data_quality(str(serving_path), mtime_ns)
 
     degraded_dates = set(degraded["event_date_utc"].dt.date)
     assert degraded_dates == {date(2026, 2, 2), date(2026, 2, 3)}
