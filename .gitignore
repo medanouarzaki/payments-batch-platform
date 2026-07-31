@@ -9,5 +9,9 @@ logs/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+# coverage data written by pytest-cov runs
+.coverage
+.coverage.*
+htmlcov/
 .DS_Store
 *.bak
