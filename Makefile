@@ -31,7 +31,7 @@ lint-ci:  ## Lint a copy of the tracked and untracked-but-not-ignored files only
 	exit $$status
 
 test:  ## Run the test suite
-	uv run pytest
+	uv run pytest --cov=payments --cov-report=term-missing
 
 up:  ## Start the local stack
 	docker compose up -d
