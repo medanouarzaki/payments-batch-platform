@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint test up down clean generate inspect fetch-fx export-marts dashboard-install dashboard dashboard-test dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
+.PHONY: help install requirements lint lint-ci test up down clean generate inspect fetch-fx export-marts dashboard-install dashboard dashboard-test dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -18,6 +18,17 @@ requirements:  ## Regenerate requirements.txt from the lockfile
 lint:  ## Check formatting and lint rules
 	uv run ruff check .
 	uv run ruff format --check .
+
+# an untracked directory at the repo root can change ruff's import
+# classification, making local lint more permissive than CI's clean checkout
+lint-ci:  ## Lint a copy of the tracked and untracked-but-not-ignored files only
+	@tmp="$$(mktemp -d)"; \
+	trap 'rm -rf "$$tmp"' EXIT INT TERM; \
+	git ls-files --cached --others --exclude-standard -z | tar --null -T - -cf - | tar -xf - -C "$$tmp"; \
+	status=0; \
+	"$(CURDIR)/.venv/bin/ruff" check --no-cache "$$tmp" || status=$$?; \
+	"$(CURDIR)/.venv/bin/ruff" format --check --no-cache "$$tmp" || status=$$?; \
+	exit $$status
 
 test:  ## Run the test suite
 	uv run pytest
