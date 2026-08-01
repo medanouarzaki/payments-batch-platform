@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint lint-ci lint-sql test dbt-full-build up down clean generate inspect fetch-fx export-marts dashboard-install dashboard dashboard-test dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
+.PHONY: help install requirements lint lint-ci lint-sql test dbt-full-build nightly up down clean generate inspect fetch-fx export-marts dashboard-install dashboard dashboard-test dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -38,6 +38,29 @@ test:  ## Run the test suite
 
 dbt-full-build:  ## Build the whole dbt project once and check every test runs
 	uv run pytest tests/integration/test_full_dbt_build.py -v -s
+
+# Replays the DAG's nine tasks outside Airflow, using the same scripts and
+# module. Writes to whatever warehouse PAYMENTS_WAREHOUSE_PATH points to,
+# stopping at the first task that fails.
+nightly:  ## Replay a full day of the DAG outside Airflow (usage: make nightly [DATE=YYYY-MM-DD])
+	@set -e; \
+	RUN_DATE="$(DATE)"; \
+	if [ -z "$$RUN_DATE" ]; then \
+		RUN_DATE="$$(uv run python -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"))')"; \
+	fi; \
+	WAREHOUSE_PATH="$${PAYMENTS_WAREHOUSE_PATH:-$(CURDIR)/data/warehouse.duckdb}"; \
+	echo "warehouse: $$WAREHOUSE_PATH"; \
+	echo "date: $$RUN_DATE"; \
+	uv run python airflow/scripts/preflight_check.py; \
+	uv run python -m payments generate --date "$$RUN_DATE"; \
+	uv run python -m payments fetch-fx --date "$$RUN_DATE"; \
+	$(DBT_ENV) uv run dbt seed --project-dir dbt; \
+	$(DBT_ENV) uv run dbt build --project-dir dbt --select tag:staging --indirect-selection buildable; \
+	$(DBT_ENV) uv run dbt build --project-dir dbt --select tag:intermediate fct_transactions --indirect-selection buildable; \
+	$(DBT_ENV) uv run dbt build --project-dir dbt --select tag:marts --exclude fct_transactions --indirect-selection buildable; \
+	uv run python airflow/scripts/dq_gate.py --ingestion-date "$$RUN_DATE" --threshold 0.05; \
+	uv run python airflow/scripts/publish_serving.py; \
+	uv run python airflow/scripts/warehouse_summary.py
 
 up:  ## Start the local stack
 	docker compose up -d
