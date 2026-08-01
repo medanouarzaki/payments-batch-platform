@@ -7,7 +7,7 @@ COPY dashboard/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY dashboard/app.py /app/app.py
-COPY dashboard/data.py /app/data.py
+COPY dashboard/loaders.py /app/loaders.py
 COPY dashboard/views/ /app/views/
 
 USER dashboard
