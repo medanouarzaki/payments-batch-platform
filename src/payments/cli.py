@@ -16,6 +16,7 @@ from payments.generator import build_daily_batch
 from payments.ingestion import LandingError, land_batch, partition_path
 from payments.logging_setup import configure_logging, get_logger
 from payments.publish.export_marts import export_marts
+from payments.publish.export_snapshot import export_snapshot
 
 EXIT_SUCCESS = 0
 EXIT_UNEXPECTED_ERROR = 1
@@ -77,6 +78,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers.add_parser("export-marts", help="publish warehouse marts to a serving file")
+
+    subparsers.add_parser("snapshot", help="publish serving marts as csv files with a manifest")
 
     return parser
 
@@ -223,6 +226,26 @@ def _run_export_marts(args: argparse.Namespace, logger) -> int:
     return EXIT_SUCCESS
 
 
+def _run_snapshot(args: argparse.Namespace, logger) -> int:
+    settings = get_settings()
+    serving_path = settings.serving_dir / "marts.duckdb"
+    snapshot_dir = settings.project_root / "dashboard" / "snapshot"
+
+    start = time.perf_counter()
+    result = export_snapshot(serving_path, snapshot_dir)
+    duration = time.perf_counter() - start
+
+    summary = {
+        "command": "snapshot",
+        "snapshot_dir": str(result.snapshot_dir.relative_to(settings.project_root)),
+        "tables": {table.name: table.rows for table in result.tables},
+        "duration_s": duration,
+    }
+
+    print(json.dumps(summary))
+    return EXIT_SUCCESS
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     try:
@@ -243,6 +266,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_fetch_fx(args, logger)
         if args.command == "export-marts":
             return _run_export_marts(args, logger)
+        if args.command == "snapshot":
+            return _run_snapshot(args, logger)
         logger.error("unknown command %r", args.command)
         return EXIT_UNEXPECTED_ERROR
     except LandingError as exc:

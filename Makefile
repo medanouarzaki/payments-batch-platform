@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install requirements lint lint-ci lint-sql test dbt-full-build nightly up down clean generate inspect fetch-fx export-marts dashboard-install dashboard dashboard-test dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
+.PHONY: help install requirements lint lint-ci lint-sql test dbt-full-build nightly up down clean generate inspect fetch-fx export-marts snapshot dashboard-install dashboard dashboard-test dbt-debug dbt-seed dbt-test dbt-run dbt-build init-env backfill
 
 DBT_ENV = PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')" \
 	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')" \
@@ -97,6 +97,9 @@ endif
 
 export-marts:  ## Publish warehouse marts to a separate serving file
 	uv run python -m payments export-marts
+
+snapshot:  ## Publish serving marts as csv files with a manifest for the public dashboard
+	uv run python -m payments snapshot
 
 dashboard-install:  ## Create the dashboard virtualenv from its pinned requirements
 	uv venv .venv-dashboard --python 3.11

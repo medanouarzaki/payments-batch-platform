@@ -5,6 +5,7 @@ import subprocess
 import sys
 from datetime import UTC, date, datetime
 
+import duckdb
 import pytest
 
 from payments.cli import (
@@ -172,7 +173,7 @@ def test_build_parser_exposes_subcommands_and_help_does_not_crash():
     ]
     assert subcommand_actions, "no subparsers action found"
     choices = subcommand_actions[0].choices
-    assert set(choices) == {"generate", "inspect", "fetch-fx", "export-marts"}
+    assert set(choices) == {"generate", "inspect", "fetch-fx", "export-marts", "snapshot"}
 
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["--help"])
@@ -285,3 +286,64 @@ def test_export_marts_command_writes_the_serving_file(raw_dir, tmp_path, capsys,
     lines = _stdout_lines(capsys)
     assert "agg_transactions_daily 3" in lines
     assert "dim_country 2" in lines
+
+
+def _build_snapshot_source(serving_path) -> None:
+    serving_path.parent.mkdir(parents=True)
+    con = duckdb.connect(str(serving_path))
+    con.execute(
+        "create table agg_transactions_daily (event_date_utc date, transaction_count integer)"
+    )
+    con.execute(
+        "insert into agg_transactions_daily values (date '2026-01-01', 3), (date '2026-01-02', 4)"
+    )
+    con.execute(
+        "create table agg_transactions_channel_daily "
+        "(event_date_utc date, transaction_count integer)"
+    )
+    con.execute(
+        "insert into agg_transactions_channel_daily values "
+        "(date '2026-01-01', 1), (date '2026-01-02', 2), (date '2026-01-03', 3)"
+    )
+    con.execute(
+        "create table agg_fx_exposure_daily (event_date_utc date, transaction_count integer)"
+    )
+    con.execute("insert into agg_fx_exposure_daily values (date '2026-01-01', 9)")
+    con.execute("create table data_quality_daily (ingestion_date date, received_row_count integer)")
+    con.execute("insert into data_quality_daily values (date '2026-01-01', 15)")
+    con.execute("create table dim_country (alpha_2 varchar)")
+    con.execute("insert into dim_country values ('FR'), ('DE')")
+    con.execute("create table dim_currency (currency_code varchar)")
+    con.execute("insert into dim_currency values ('EUR')")
+    con.close()
+
+
+def test_snapshot_command_writes_csvs_and_manifest_and_prints_summary(
+    tmp_path, capsys, monkeypatch
+):
+    monkeypatch.setenv("PAYMENTS_PROJECT_ROOT", str(tmp_path))
+
+    serving_path = tmp_path / "data" / "serving" / "marts.duckdb"
+    _build_snapshot_source(serving_path)
+
+    code = main(["snapshot"])
+    assert code == 0
+
+    snapshot_dir = tmp_path / "dashboard" / "snapshot"
+    expected_rows = {
+        "agg_transactions_daily": 2,
+        "agg_transactions_channel_daily": 3,
+        "agg_fx_exposure_daily": 1,
+        "data_quality_daily": 1,
+        "dim_country": 2,
+        "dim_currency": 1,
+    }
+    for table in expected_rows:
+        assert (snapshot_dir / f"{table}.csv").is_file()
+    assert (snapshot_dir / "manifest.json").is_file()
+
+    lines = _stdout_lines(capsys)
+    assert len(lines) == 1
+    payload = json.loads(lines[0])
+    assert payload["command"] == "snapshot"
+    assert payload["tables"] == expected_rows

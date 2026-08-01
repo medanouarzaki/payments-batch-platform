@@ -1,0 +1,266 @@
+{
+  "duckdb_version": "1.5.5",
+  "serving_published_at": "2026-07-30T15:06:42Z",
+  "tables": [
+    {
+      "columns": [
+        {
+          "name": "event_date_utc",
+          "type": "DATE"
+        },
+        {
+          "name": "currency_code",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "amount_native_total",
+          "type": "DECIMAL(38,2)"
+        },
+        {
+          "name": "amount_eur_total",
+          "type": "DECIMAL(38,2)"
+        },
+        {
+          "name": "converted_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "unconverted_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "fx_rate_used",
+          "type": "DOUBLE"
+        },
+        {
+          "name": "fx_rate_date_used",
+          "type": "DATE"
+        },
+        {
+          "name": "fx_rate_age_days",
+          "type": "BIGINT"
+        },
+        {
+          "name": "fx_status",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "is_carried_forward",
+          "type": "BOOLEAN"
+        }
+      ],
+      "csv_file": "agg_fx_exposure_daily.csv",
+      "fingerprint": "9df28b3459cc8449eb4d27ad3ec2b2db",
+      "name": "agg_fx_exposure_daily",
+      "rows": 1107
+    },
+    {
+      "columns": [
+        {
+          "name": "event_date_utc",
+          "type": "DATE"
+        },
+        {
+          "name": "channel",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "amount_eur_total",
+          "type": "DECIMAL(38,2)"
+        },
+        {
+          "name": "converted_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "unconverted_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "late_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "distinct_currency_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "last_source_ingestion_date",
+          "type": "DATE"
+        }
+      ],
+      "csv_file": "agg_transactions_channel_daily.csv",
+      "fingerprint": "5d0a14de603693b659324ef3a15bca88",
+      "name": "agg_transactions_channel_daily",
+      "rows": 1841
+    },
+    {
+      "columns": [
+        {
+          "name": "event_date_utc",
+          "type": "DATE"
+        },
+        {
+          "name": "debtor_country",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "amount_eur_total",
+          "type": "DECIMAL(38,2)"
+        },
+        {
+          "name": "converted_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "unconverted_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "late_transaction_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "distinct_currency_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "last_source_ingestion_date",
+          "type": "DATE"
+        }
+      ],
+      "csv_file": "agg_transactions_daily.csv",
+      "fingerprint": "333bd47723e574b388a6edd9100522f6",
+      "name": "agg_transactions_daily",
+      "rows": 4394
+    },
+    {
+      "columns": [
+        {
+          "name": "ingestion_date",
+          "type": "DATE"
+        },
+        {
+          "name": "received_row_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "valid_row_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "quarantined_row_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "duplicate_removed_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "deduplicated_row_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "late_row_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "rejection_rate",
+          "type": "DOUBLE"
+        },
+        {
+          "name": "late_rate",
+          "type": "DOUBLE"
+        },
+        {
+          "name": "quarantined_missing_key_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "quarantined_missing_currency_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "quarantined_unknown_currency_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "quarantined_non_positive_amount_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "quarantined_invalid_amount_count",
+          "type": "BIGINT"
+        },
+        {
+          "name": "quarantined_invalid_timestamp_count",
+          "type": "BIGINT"
+        }
+      ],
+      "csv_file": "data_quality_daily.csv",
+      "fingerprint": "ac8c1ce4f7d5d11d8cfcb36ee4446c63",
+      "name": "data_quality_daily",
+      "rows": 118
+    },
+    {
+      "columns": [
+        {
+          "name": "alpha_2",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "alpha_3",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "country_name",
+          "type": "VARCHAR"
+        }
+      ],
+      "csv_file": "dim_country.csv",
+      "fingerprint": "800200c980739495172898f74029c806",
+      "name": "dim_country",
+      "rows": 11
+    },
+    {
+      "columns": [
+        {
+          "name": "currency_code",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "currency_name",
+          "type": "VARCHAR"
+        },
+        {
+          "name": "minor_units",
+          "type": "INTEGER"
+        }
+      ],
+      "csv_file": "dim_currency.csv",
+      "fingerprint": "97041ed4a2d300c248d378083cc26c44",
+      "name": "dim_currency",
+      "rows": 9
+    }
+  ]
+}
