@@ -1,0 +1,42 @@
+{
+  "duckdb_version": "1.5.5",
+  "serving_published_at": "2026-07-30T15:06:42Z",
+  "tables": [
+    {
+      "csv_file": "agg_fx_exposure_daily.csv",
+      "fingerprint": "9df28b3459cc8449eb4d27ad3ec2b2db",
+      "name": "agg_fx_exposure_daily",
+      "rows": 1107
+    },
+    {
+      "csv_file": "agg_transactions_channel_daily.csv",
+      "fingerprint": "5d0a14de603693b659324ef3a15bca88",
+      "name": "agg_transactions_channel_daily",
+      "rows": 1841
+    },
+    {
+      "csv_file": "agg_transactions_daily.csv",
+      "fingerprint": "333bd47723e574b388a6edd9100522f6",
+      "name": "agg_transactions_daily",
+      "rows": 4394
+    },
+    {
+      "csv_file": "data_quality_daily.csv",
+      "fingerprint": "ac8c1ce4f7d5d11d8cfcb36ee4446c63",
+      "name": "data_quality_daily",
+      "rows": 118
+    },
+    {
+      "csv_file": "dim_country.csv",
+      "fingerprint": "800200c980739495172898f74029c806",
+      "name": "dim_country",
+      "rows": 11
+    },
+    {
+      "csv_file": "dim_currency.csv",
+      "fingerprint": "97041ed4a2d300c248d378083cc26c44",
+      "name": "dim_currency",
+      "rows": 9
+    }
+  ]
+}
