@@ -1,0 +1,15 @@
+# Layout rules are excluded because the project follows its own SQL
+# formatting convention, and reindenting models whose output is used as
+# a reference fingerprint would carry risk without any real payoff.
+
+[sqlfluff]
+dialect = duckdb
+templater = jinja
+max_line_length = 100
+exclude_rules = layout
+
+[sqlfluff:templater:jinja]
+load_macros_from_path = dbt/macros
+
+[sqlfluff:templater:jinja:context]
+dedup_window_days = 7

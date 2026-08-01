@@ -55,7 +55,7 @@ normalized_currency as (
             and parsed_amounts.currency <> upper(parsed_amounts.currency) as currency_case_fixed_flag,
         nullif(upper(trim(parsed_amounts.currency)), '') is not null
             and not exists (
-                select 1 from {{ ref('dim_currency') }} c
+                select 1 from {{ ref('dim_currency') }} as c
                 where c.currency_code = nullif(upper(trim(parsed_amounts.currency)), '')
             ) as currency_unknown_flag
     from parsed_amounts
@@ -69,9 +69,9 @@ resolved_countries as (
         lookup_debtor.alpha_2 as debtor_country_resolved,
         lookup_creditor.alpha_2 as creditor_country_resolved
     from normalized_currency
-    left join ( {{ country_lookup() }} ) as lookup_debtor
+    left join ( {{ country_lookup() }} ) as lookup_debtor  -- subquery comes from a shared macro called twice in this select -- noqa: ST05
         on lookup_debtor.code = {{ clean_country_code('normalized_currency.debtor_country') }}
-    left join ( {{ country_lookup() }} ) as lookup_creditor
+    left join ( {{ country_lookup() }} ) as lookup_creditor  -- subquery comes from a shared macro called twice in this select -- noqa: ST05
         on lookup_creditor.code = {{ clean_country_code('normalized_currency.creditor_country') }}
 
 ),

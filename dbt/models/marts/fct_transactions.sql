@@ -49,10 +49,10 @@ joined as (
         eur_scale.minor_units as eur_minor_units
     from transactions
     left join {{ ref('stg_fx_rates') }} as fx
-        on fx.rate_date = transactions.event_date_utc
-       and fx.quote_currency = transactions.currency_code
+        on transactions.event_date_utc = fx.rate_date
+       and transactions.currency_code = fx.quote_currency
     left join {{ ref('dim_currency') }} as currency
-        on currency.currency_code = transactions.currency_code
+        on transactions.currency_code = currency.currency_code
     cross join eur_scale
 
 ),
@@ -62,22 +62,22 @@ resolved as (
     select
         joined.*,
         case
-            when currency_code = 'EUR' then 'base_currency'
-            when fx_quote_currency is null then 'rate_missing'
-            when fx_rate is null then 'unavailable'
-            else fx_rate_status
+            when joined.currency_code = 'EUR' then 'base_currency'
+            when joined.fx_quote_currency is null then 'rate_missing'
+            when joined.fx_rate is null then 'unavailable'
+            else joined.fx_rate_status
         end as resolved_fx_status,
         case
-            when currency_code = 'EUR' then 1
-            when fx_quote_currency is null then null
-            when fx_rate is null then null
-            else fx_rate
+            when joined.currency_code = 'EUR' then 1
+            when joined.fx_quote_currency is null then null
+            when joined.fx_rate is null then null
+            else joined.fx_rate
         end as resolved_fx_rate_used,
         case
-            when currency_code = 'EUR' then event_date_utc
-            when fx_quote_currency is null then null
-            when fx_rate is null then null
-            else fx_effective_rate_date
+            when joined.currency_code = 'EUR' then joined.event_date_utc
+            when joined.fx_quote_currency is null then null
+            when joined.fx_rate is null then null
+            else joined.fx_effective_rate_date
         end as resolved_fx_rate_date_used
     from joined
 
@@ -85,7 +85,7 @@ resolved as (
 
 final as (
 
-    select
+    select  -- fact table column order is the project's reference content fingerprint -- noqa: ST06
         transaction_id,
         event_timestamp_utc,
         event_date_utc,
@@ -110,7 +110,6 @@ final as (
             when resolved_fx_status = 'base_currency' then amount
             when resolved_fx_status in ('ok', 'carried_forward')
                 then cast(round(cast(amount as double) / fx_rate, eur_minor_units) as decimal(18,2))
-            else null
         end as amount_eur,
         resolved_fx_rate_used as fx_rate_used,
         resolved_fx_rate_date_used as fx_rate_date_used,

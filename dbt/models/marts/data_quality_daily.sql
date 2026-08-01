@@ -45,7 +45,7 @@ staging_stats as (
         count(*) filter (where not stg_transactions.is_valid) as quarantined_row_count
     from {{ ref('stg_transactions') }} as stg_transactions
     inner join touched_ingestion_dates
-        on touched_ingestion_dates.ingestion_date = stg_transactions.ingestion_date
+        on stg_transactions.ingestion_date = touched_ingestion_dates.ingestion_date
     group by 1
 
 ),
@@ -60,7 +60,7 @@ fact_stats as (
         ) as late_row_count
     from {{ ref('fct_transactions') }} as fct_transactions
     inner join touched_ingestion_dates
-        on touched_ingestion_dates.ingestion_date = fct_transactions.source_ingestion_date
+        on fct_transactions.source_ingestion_date = touched_ingestion_dates.ingestion_date
     group by 1
 
 ),
@@ -76,7 +76,7 @@ quarantine_stats as (
         {% endfor %}
     from {{ ref('quarantine_transactions') }} as quarantine_transactions
     inner join touched_ingestion_dates
-        on touched_ingestion_dates.ingestion_date = quarantine_transactions.ingestion_date
+        on quarantine_transactions.ingestion_date = touched_ingestion_dates.ingestion_date
     group by 1
 
 ),
@@ -117,11 +117,11 @@ final as (
         {% endfor %}
     from touched_ingestion_dates
     left join staging_stats
-        on staging_stats.ingestion_date = touched_ingestion_dates.ingestion_date
+        on touched_ingestion_dates.ingestion_date = staging_stats.ingestion_date
     left join fact_stats
-        on fact_stats.ingestion_date = touched_ingestion_dates.ingestion_date
+        on touched_ingestion_dates.ingestion_date = fact_stats.ingestion_date
     left join quarantine_stats
-        on quarantine_stats.ingestion_date = touched_ingestion_dates.ingestion_date
+        on touched_ingestion_dates.ingestion_date = quarantine_stats.ingestion_date
 
 )
 
