@@ -40,28 +40,33 @@ dbt-full-build:  ## Build the whole dbt project once and check every test runs
 	uv run pytest tests/integration/test_full_dbt_build.py -v -s
 
 # Replays the DAG's nine tasks outside Airflow, using the same scripts and
-# module. Writes to whatever warehouse PAYMENTS_WAREHOUSE_PATH points to,
-# stopping at the first task that fails.
+# module. The three task scripts read PAYMENTS_WAREHOUSE_PATH and
+# PAYMENTS_RAW_TRANSACTIONS_DIR from the environment and fall back to the
+# container's paths when they are absent, so the recipe exports both from
+# config.py before calling anything. Stops at the first task that fails.
 nightly:  ## Replay a full day of the DAG outside Airflow (usage: make nightly [DATE=YYYY-MM-DD])
 	@set -e; \
 	RUN_DATE="$(DATE)"; \
 	if [ -z "$$RUN_DATE" ]; then \
 		RUN_DATE="$$(uv run python -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"))')"; \
 	fi; \
-	WAREHOUSE_PATH="$${PAYMENTS_WAREHOUSE_PATH:-$(CURDIR)/data/warehouse.duckdb}"; \
-	echo "warehouse: $$WAREHOUSE_PATH"; \
+	PAYMENTS_WAREHOUSE_PATH="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().warehouse_path)')"; \
+	PAYMENTS_RAW_TRANSACTIONS_DIR="$$(uv run python -c 'from payments.config import get_settings; print(get_settings().raw_transactions_dir)')"; \
+	export PAYMENTS_WAREHOUSE_PATH PAYMENTS_RAW_TRANSACTIONS_DIR; \
+	export DBT_PROFILES_DIR="$(CURDIR)/dbt"; \
+	echo "warehouse: $$PAYMENTS_WAREHOUSE_PATH"; \
 	echo "date: $$RUN_DATE"; \
-	if [ -f "$$WAREHOUSE_PATH" ]; then \
+	if [ -f "$$PAYMENTS_WAREHOUSE_PATH" ]; then \
 		uv run python airflow/scripts/preflight_check.py; \
 	else \
-		echo "skipping the preflight check: no warehouse yet at $$WAREHOUSE_PATH, treating this as day one"; \
+		echo "skipping the preflight check: no warehouse yet at $$PAYMENTS_WAREHOUSE_PATH, treating this as day one"; \
 	fi; \
 	uv run python -m payments generate --date "$$RUN_DATE"; \
 	uv run python -m payments fetch-fx --date "$$RUN_DATE"; \
-	$(DBT_ENV) uv run dbt seed --project-dir dbt; \
-	$(DBT_ENV) uv run dbt build --project-dir dbt --select tag:staging --indirect-selection buildable; \
-	$(DBT_ENV) uv run dbt build --project-dir dbt --select tag:intermediate fct_transactions --indirect-selection buildable; \
-	$(DBT_ENV) uv run dbt build --project-dir dbt --select tag:marts --exclude fct_transactions --indirect-selection buildable; \
+	uv run dbt seed --project-dir dbt; \
+	uv run dbt build --project-dir dbt --select tag:staging --indirect-selection buildable; \
+	uv run dbt build --project-dir dbt --select tag:intermediate fct_transactions --indirect-selection buildable; \
+	uv run dbt build --project-dir dbt --select tag:marts --exclude fct_transactions --indirect-selection buildable; \
 	uv run python airflow/scripts/dq_gate.py --ingestion-date "$$RUN_DATE" --threshold 0.05; \
 	uv run python airflow/scripts/publish_serving.py; \
 	uv run python airflow/scripts/warehouse_summary.py
