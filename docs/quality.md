@@ -26,10 +26,10 @@ Conversion status is recorded per row rather than inferred, in five values:
 
 | Status | Rows | Meaning |
 |---|---|---|
-| `ok` | 1,448,972 | Converted at the rate published for the event date |
+| `ok` | 1,484,446 | Converted at the rate published for the event date |
 | `base_currency` | 1,410,634 | Already in euros; no conversion needed |
-| `unavailable` | 344,975 | The currency is not published by the rate source |
-| `carried_forward` | 320,652 | Converted at the most recent earlier rate |
+| `unavailable` | 281,627 | The currency is not published by the rate source |
+| `carried_forward` | 348,526 | Converted at the most recent earlier rate |
 | `rate_missing` | 1,133 | No usable rate, so no euro amount |
 
 Three of these five did not exist in the original design. They were added after
@@ -57,6 +57,10 @@ been seen fail on a defect introduced on purpose.
   tracks would fail the test that checks the reasons add up.
 - **A bad day stops the run.** When the quarantined share for a day exceeds a threshold
   passed as a pipeline parameter, publication does not happen.
+- **Replaying the most recent day changes nothing.** The whole chain was run twice in a
+  row on that day, against the real warehouse and not a sandbox. The landed Parquet file
+  came back byte-identical both times, and the ten table fingerprints were unchanged after
+  each run.
 
 ## What is not guaranteed
 
@@ -65,16 +69,19 @@ been seen fail on a defect introduced on purpose.
   anything about real payment traffic.
 - **Rates come from one public source, with no fallback.** When that source is
   unreachable, the run fails rather than inventing a rate.
-- **Replaying an old day does not reproduce it.** Conversion reads the rate cache in its
-  current state, not the state it had then. Only the most recent day can be replayed and
-  compared.
+- **A late correction to the rate cache never reaches old facts.** Conversion reads the
+  cache in its current state, but only rows whose ingestion date still falls inside the
+  window are recomputed. Filling a gap in the cache four months after the fact left 63,348
+  rows carrying a status the cache no longer justified, and nothing detected it until the
+  warehouse was rebuilt. Record 0019 has the measurement and the decision.
 - **A partition older than the deduplication window is not reconsidered.** The window is
   anchored on the most recent ingestion date, and anything before it is silently out of
   scope.
-- **The content fingerprints have not been reverified since the SQL was last touched.**
-  Seven models were changed lexically after the fingerprints were established, and the
-  test suite passed, but the warehouse was not rebuilt to confirm the content is
-  identical. This is a known debt, not an oversight.
+- **Nothing reverifies the content fingerprints automatically.** They were confirmed once,
+  by rebuilding the whole warehouse from unchanged inputs and comparing table by table, and
+  that rebuild is what uncovered the conversion drift above. No test repeats it: the check
+  costs a full rebuild of three and a half million rows, so it happens when someone decides
+  it should.
 - **The public dashboard shows a frozen snapshot**, not the live warehouse.
 
 ## How to recompute these numbers

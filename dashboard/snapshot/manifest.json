@@ -1,6 +1,6 @@
 {
   "duckdb_version": "1.5.5",
-  "serving_published_at": "2026-07-30T15:06:42Z",
+  "serving_published_at": "2026-08-01T22:43:14Z",
   "tables": [
     {
       "columns": [
@@ -54,7 +54,7 @@
         }
       ],
       "csv_file": "agg_fx_exposure_daily.csv",
-      "fingerprint": "9df28b3459cc8449eb4d27ad3ec2b2db",
+      "fingerprint": "d6237bf1151f987701f1582557bb18a1",
       "name": "agg_fx_exposure_daily",
       "rows": 1107
     },
@@ -102,7 +102,7 @@
         }
       ],
       "csv_file": "agg_transactions_channel_daily.csv",
-      "fingerprint": "5d0a14de603693b659324ef3a15bca88",
+      "fingerprint": "27a519e1477ed6a038a3e3622bbfed8a",
       "name": "agg_transactions_channel_daily",
       "rows": 1841
     },
@@ -150,7 +150,7 @@
         }
       ],
       "csv_file": "agg_transactions_daily.csv",
-      "fingerprint": "333bd47723e574b388a6edd9100522f6",
+      "fingerprint": "a1430c4de0baa8bc98832280f00c285f",
       "name": "agg_transactions_daily",
       "rows": 4394
     },

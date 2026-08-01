@@ -86,6 +86,24 @@ It reads the serving file read-only, writes six CSV files and a manifest under
 `dashboard/snapshot/`, and is idempotent: re-running it on unchanged data produces
 byte-identical files.
 
+## Compacting the warehouse
+
+Incremental writes never reclaim space. The file grows on every run even when the content
+does not change: two replays of a single day added 247 MB to a 612 MB warehouse, and the
+118 runs that originally built it had left it 38 percent larger than the same content
+occupies once compacted. DuckDB frees the blocks for reuse but never shrinks the file, and
+a checkpoint does not either.
+
+Compaction is a copy. Attach a new database file, run `copy from database` into it, verify
+the copy against the fingerprints before replacing the original, and keep the original
+until that verification has passed. The new file has to be called `warehouse.duckdb`:
+DuckDB derives the catalog name from the file name, and `stg_fx_rates` is a view whose
+stored definition names that catalog, so a copy under any other name opens but fails on
+that view.
+
+Nothing does this on its own. It is a manual operation, and nothing degrades without it
+except free disk space.
+
 ## When something breaks
 
 **A run stops at the quality gate.** The quarantined share for that day exceeded the
