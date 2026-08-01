@@ -51,7 +51,11 @@ nightly:  ## Replay a full day of the DAG outside Airflow (usage: make nightly [
 	WAREHOUSE_PATH="$${PAYMENTS_WAREHOUSE_PATH:-$(CURDIR)/data/warehouse.duckdb}"; \
 	echo "warehouse: $$WAREHOUSE_PATH"; \
 	echo "date: $$RUN_DATE"; \
-	uv run python airflow/scripts/preflight_check.py; \
+	if [ -f "$$WAREHOUSE_PATH" ]; then \
+		uv run python airflow/scripts/preflight_check.py; \
+	else \
+		echo "skipping the preflight check: no warehouse yet at $$WAREHOUSE_PATH, treating this as day one"; \
+	fi; \
 	uv run python -m payments generate --date "$$RUN_DATE"; \
 	uv run python -m payments fetch-fx --date "$$RUN_DATE"; \
 	$(DBT_ENV) uv run dbt seed --project-dir dbt; \
