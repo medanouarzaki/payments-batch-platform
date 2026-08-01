@@ -15,6 +15,10 @@ concurrency:
 jobs:
   nightly:
     runs-on: ubuntu-latest
+    env:
+      PAYMENTS_DATA_DIR: ${{ github.workspace }}/data
+      PAYMENTS_RAW_TRANSACTIONS_DIR: ${{ github.workspace }}/data/raw/transactions
+      PAYMENTS_WAREHOUSE_PATH: ${{ github.workspace }}/data/warehouse.duckdb
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
