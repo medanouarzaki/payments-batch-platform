@@ -67,7 +67,7 @@ on one machine; the only external dependency is a public exchange rate API.
 | dbt tests | 78 |
 | Python tests | 187, plus 17 for the dashboard |
 | Coverage of the pipeline package | 95.4%, with a blocking floor at 90% |
-| Decision records | 17 |
+| Decision records | 20, plus a template |
 
 Every count in the first six rows can be recomputed from this repository alone, without
 running anything: `dashboard/snapshot/` holds a committed CSV copy of the published
@@ -99,8 +99,8 @@ see `docs/operations.md`.
 
 ## Decisions
 
-Seventeen decision records live in `docs/decisions/`, each with the alternatives that
-were rejected and why. The ones that shaped the rest:
+Twenty decision records live in `docs/decisions/`, each with the alternatives that were
+rejected and why. The ones that shaped the rest:
 
 - [DuckDB as the warehouse](docs/decisions/0001-use-duckdb-as-the-analytical-warehouse.md)
   — one file, no server, and the reason that choice constrains everything downstream.
@@ -110,6 +110,8 @@ were rejected and why. The ones that shaped the rest:
   — what the window buys, and what it silently excludes.
 - [A separate serving layer](docs/decisions/0010-separate-the-serving-layer-into-its-own-file-and-environment.md)
   — measured from a lock error, not assumed.
+- [Rebuild after a retroactive rate correction](docs/decisions/0019-rebuild-the-warehouse-after-a-retroactive-rate-correction.md)
+  — what a content fingerprint is for, and what it caught.
 
 ## What is in here
 
