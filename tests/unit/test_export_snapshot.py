@@ -168,3 +168,53 @@ def test_manifest_rows_and_fingerprints_match_the_rebuilt_tables(tmp_path) -> No
     finally:
         source_con.close()
         rebuilt_con.close()
+
+
+def test_reconstructing_from_manifest_columns_alone_matches_the_source(tmp_path) -> None:
+    serving_path = tmp_path / "serving" / "marts.duckdb"
+    _build_serving(serving_path)
+    snapshot_dir = tmp_path / "snapshot"
+
+    export_snapshot(serving_path, snapshot_dir)
+
+    manifest = json.loads((snapshot_dir / "manifest.json").read_text())
+    manifest_by_name = {entry["name"]: entry for entry in manifest["tables"]}
+
+    source_con = duckdb.connect(str(serving_path), read_only=True)
+    rebuilt_con = duckdb.connect(str(tmp_path / "rebuilt-from-manifest.duckdb"))
+    try:
+        for table in SNAPSHOT_TABLES:
+            entry = manifest_by_name[table]
+
+            # Declares the table using only the manifest's recorded column
+            # names and types, never inspecting the source database.
+            ddl = ", ".join(f'"{col["name"]}" {col["type"]}' for col in entry["columns"])
+            rebuilt_con.execute(f'create table "{table}" ({ddl})')
+            csv_path = snapshot_dir / entry["csv_file"]
+            rebuilt_con.execute(f"copy \"{table}\" from '{csv_path}' (header, delimiter ',')")
+
+            rebuilt_columns = rebuilt_con.execute(
+                "select column_name, data_type from information_schema.columns "
+                "where table_name = ? order by ordinal_position",
+                [table],
+            ).fetchall()
+            expected_columns = [(col["name"], col["type"]) for col in entry["columns"]]
+            assert rebuilt_columns == expected_columns
+
+            source_columns = source_con.execute(
+                "select column_name, data_type from information_schema.columns "
+                "where table_name = ? order by ordinal_position",
+                [table],
+            ).fetchall()
+            assert rebuilt_columns == source_columns
+
+            source_rows = source_con.execute(f'select count(*) from "{table}"').fetchone()[0]
+            rebuilt_rows = rebuilt_con.execute(f'select count(*) from "{table}"').fetchone()[0]
+            assert rebuilt_rows == source_rows
+
+            source_fingerprint = table_fingerprint(source_con, table)
+            rebuilt_fingerprint = table_fingerprint(rebuilt_con, table)
+            assert rebuilt_fingerprint == source_fingerprint
+    finally:
+        source_con.close()
+        rebuilt_con.close()

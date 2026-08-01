@@ -28,6 +28,7 @@ class TableSnapshot:
     rows: int
     fingerprint: str
     csv_file: str
+    columns: tuple[tuple[str, str], ...]
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,15 @@ class SnapshotResult:
     snapshot_dir: Path
     manifest_path: Path
     tables: tuple[TableSnapshot, ...]
+
+
+def _table_columns(con: duckdb.DuckDBPyConnection, table: str) -> tuple[tuple[str, str], ...]:
+    rows = con.execute(
+        "select column_name, data_type from information_schema.columns "
+        "where table_name = ? order by ordinal_position",
+        [table],
+    ).fetchall()
+    return tuple((name, data_type) for name, data_type in rows)
 
 
 def _export_table_csv(con: duckdb.DuckDBPyConnection, table: str, csv_path: Path) -> None:
@@ -59,8 +69,15 @@ def export_snapshot(serving_path: Path, snapshot_dir: Path) -> SnapshotResult:
             _export_table_csv(con, table, snapshot_dir / csv_file)
             rows = con.execute(f'select count(*) from "{table}"').fetchone()[0]
             fingerprint = table_fingerprint(con, table)
+            columns = _table_columns(con, table)
             tables.append(
-                TableSnapshot(name=table, rows=rows, fingerprint=fingerprint, csv_file=csv_file)
+                TableSnapshot(
+                    name=table,
+                    rows=rows,
+                    fingerprint=fingerprint,
+                    csv_file=csv_file,
+                    columns=columns,
+                )
             )
     finally:
         con.close()
@@ -74,6 +91,7 @@ def export_snapshot(serving_path: Path, snapshot_dir: Path) -> SnapshotResult:
                 "rows": t.rows,
                 "fingerprint": t.fingerprint,
                 "csv_file": t.csv_file,
+                "columns": [{"name": name, "type": data_type} for name, data_type in t.columns],
             }
             for t in tables
         ],
