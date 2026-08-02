@@ -39,14 +39,21 @@ carries a status explaining why.
 
 ## What is guaranteed
 
-These properties are enforced by tests that run on every pull request, and each one has
-been seen fail on a defect introduced on purpose.
+Each property below is enforced by tests that run on every pull request, and each has been
+seen fail on a defect introduced on purpose. That was checked again on 2026-08-02, one
+mutation per property, rather than trusted from the block where each test was written. Two
+of the eight properties this section used to list were holding by nothing at all; record
+0022 has what was found and what changed.
 
-- **Rows are accounted for.** Received equals valid plus quarantined, per day. Nothing
-  disappears between the landing zone and the fact table without appearing in a count.
+- **Valid rows reach the fact table.** Every valid transaction identifier ingested inside
+  the deduplication window appears in `fct_transactions`. This is checked directly against
+  the staging table, because the published accounting cannot check it: the duplicate count
+  is a subtraction, so rows lost on the way to the fact table reappear in it as duplicates
+  that were never there, and the arithmetic still balances.
+- **The published duplicate count is real.** The duplicates reported for a day equal the
+  duplicates measurable independently on the staging table for the same day.
 - **One row per transaction.** Deduplication is deterministic: given the same input, the
-  same row wins, and the count of removed duplicates is obtained by subtraction rather
-  than by comparing hashes, since duplicates share the winner's hash by construction.
+  same row wins.
 - **No event after its ingestion.** A transaction cannot be recorded as having happened
   after the batch that carried it.
 - **Aggregates reconcile with the fact table.** Each of the three aggregates sums back
@@ -56,11 +63,14 @@ been seen fail on a defect introduced on purpose.
 - **Every quarantine reason is counted.** A row rejected for a reason that no counter
   tracks would fail the test that checks the reasons add up.
 - **A bad day stops the run.** When the quarantined share for a day exceeds a threshold
-  passed as a pipeline parameter, publication does not happen.
-- **Replaying the most recent day changes nothing.** The whole chain was run twice in a
-  row on that day, against the real warehouse and not a sandbox. The landed Parquet file
-  came back byte-identical both times, and the ten table fingerprints were unchanged after
-  each run.
+  passed as a pipeline parameter, publication does not happen. The gate's four exit paths
+  are covered by tests that run the script itself, in a subprocess, against a temporary
+  warehouse.
+- **Replaying a day changes nothing.** An integration test replays the most recent and the
+  oldest of three ingested days, comparing five table fingerprints and five row counts after
+  each replay. Separately, and once, the whole chain was run twice in a row against the real
+  warehouse: the landed Parquet file came back byte-identical and the ten table fingerprints
+  were unchanged. Only the first of those two runs on every pull request.
 
 ## What is not guaranteed
 
