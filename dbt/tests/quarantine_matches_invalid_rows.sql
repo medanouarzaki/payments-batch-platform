@@ -22,7 +22,8 @@ mismatched_counts as (
         coalesce(quarantine_counts.quarantine_rows, 0) as quarantine_rows,
         coalesce(invalid_counts.invalid_rows, 0) as invalid_rows
     from quarantine_counts
-    full outer join invalid_counts using (ingestion_date)
+    full outer join invalid_counts
+        on quarantine_counts.ingestion_date = invalid_counts.ingestion_date
     where coalesce(quarantine_counts.quarantine_rows, 0) <> coalesce(invalid_counts.invalid_rows, 0)
 
 ),
@@ -32,7 +33,7 @@ orphan_row_hashes as (
     select quarantine_transactions.row_hash
     from {{ ref('quarantine_transactions') }} as quarantine_transactions
     left join {{ ref('stg_transactions') }} as stg_transactions
-        on stg_transactions.row_hash = quarantine_transactions.row_hash
+        on quarantine_transactions.row_hash = stg_transactions.row_hash
     where stg_transactions.row_hash is null
 
 )
