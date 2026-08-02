@@ -86,7 +86,9 @@ of the eight properties this section used to list were holding by nothing at all
   warehouse was rebuilt. Record 0019 has the measurement and the decision.
 - **A partition older than the deduplication window is not reconsidered.** The window is
   anchored on the most recent ingestion date, and anything before it is silently out of
-  scope.
+  scope. The conservation check above stops at the same boundary, deliberately: rows lost
+  this way are a known limitation of the incremental clause, not a defect that test would
+  catch. Two integration tests exercise the behaviour on purpose.
 - **Nothing reverifies the content fingerprints automatically.** They were confirmed once,
   by rebuilding the whole warehouse from unchanged inputs and comparing table by table, and
   that rebuild is what uncovered the conversion drift above. No test repeats it: the check
