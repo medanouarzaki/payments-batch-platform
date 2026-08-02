@@ -60,6 +60,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - run: docker build -f docker/dashboard/Dockerfile -t pbp-dashboard:ci .
+      - name: the dashboard image carries its own Streamlit configuration
+        run: |
+          docker run -d --name dashboard-probe -p 8501:8501 pbp-dashboard:ci \
+            streamlit run app.py --server.port=8501 --server.address=0.0.0.0 \
+            -- --serving-path /nonexistent.duckdb
+          sleep 20
+          docker logs dashboard-probe > probe.log 2>&1
+          docker rm -f dashboard-probe
+          cat probe.log
+          if grep -q "Collecting usage statistics" probe.log; then
+            echo "the container did not pick up .streamlit/config.toml" >&2
+            exit 1
+          fi
       - run: docker build -f docker/airflow/Dockerfile -t pbp-airflow:ci .
 
   secrets:

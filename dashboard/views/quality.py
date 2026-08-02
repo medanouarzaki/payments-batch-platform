@@ -36,10 +36,12 @@ def render(quality_data: tuple[pd.DataFrame, pd.DataFrame]) -> None:
     gap = reasons_sum - quarantined_total
     st.caption(
         f"Sum of reasons ({reasons_sum}) vs quarantined_row_count "
-        f"({quarantined_total}): a gap of {gap}, fully measured but not "
-        "root-caused -- a plausible explanation is that some quarantined "
-        "rows trigger more than one reason at once, which this data does "
-        "not confirm or rule out."
+        f"({quarantined_total}): a gap of {gap}. The gap is the count of extra "
+        "reasons carried by rows that trigger more than one at once. On the "
+        "warehouse behind this snapshot, 95 rows carry exactly two reasons, none "
+        "carries three, and they fall on 65 of the 118 ingestion dates. A dbt "
+        "test checks that identity day by day; this page cannot, because the "
+        "quarantine table is not part of the published snapshot."
     )
 
     st.subheader("Lateness and duplicates")

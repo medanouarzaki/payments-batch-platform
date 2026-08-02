@@ -76,4 +76,20 @@ environment.
 - `docs/operations.md` — the Airflow stack, replaying a day, and what to do when a run
   breaks.
 - `docs/quality.md` — what the numbers are, what is guaranteed, and what is not.
-- `docs/decisions/` — twenty-two records of what was chosen and what was rejected.
+- `docs/decisions/` — a record per decision, with the alternatives that were rejected.
+
+## When the install fails
+
+`make install` leans on a service it does not pin. `uv.lock` records every dependency with
+its hash, and `dbt-core-experimental-parser` is in there like the rest — but that package
+ships as a source distribution only, and its build step fetches a prebuilt wheel from a
+GitHub release page. The lock file says nothing about that fetch.
+
+Here is what it looks like when it goes wrong. `uv sync` stops partway through with a
+`RuntimeError` naming a `github.com` URL and an HTTP error, most often a 503. Nothing is
+half-installed in a way that needs cleaning up, and nothing on your side caused it. Run
+`make install` again.
+
+There is a way to close this, by pinning or vendoring a prebuilt wheel, and it is not done
+here. It would change the install path for everyone who clones this repository, which is a
+larger change than the failure it prevents.

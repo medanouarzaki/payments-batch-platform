@@ -16,7 +16,7 @@ from payments.ingestion import land_batch
 
 RUN_DATES: tuple[date, ...] = (date(2026, 2, 1), date(2026, 2, 2), date(2026, 2, 3))
 
-EXPECTED_DBT_TEST_COUNT = 78
+EXPECTED_DBT_TEST_COUNT = 79
 
 
 def test_full_build_runs_every_declared_test(isolated_env, seeded_fx_rates, run_dbt) -> None:
