@@ -51,8 +51,6 @@ Python and Parquet for ingestion, DuckDB as the warehouse, dbt for the transform
 Airflow in Docker Compose for orchestration, Streamlit for the dashboard. Everything runs
 on one machine; the only external dependency is a public exchange rate API.
 
-`docs/architecture.md` has the full picture: every model, every edge, and what runs where.
-
 ## The numbers
 
 | | |
@@ -64,19 +62,18 @@ on one machine; the only external dependency is a public exchange rate API.
 | Duplicates removed | 27,979 |
 | Rows that arrived after their event date | 70,677 |
 | dbt models | 9 |
-| dbt tests | 78 |
-| Python tests | 191, plus 17 for the dashboard |
+| dbt tests | 79 |
+| Python tests | 191, plus 20 for the dashboard |
 | Coverage of the pipeline package | 95.4%, with a blocking floor at 90% |
-| Decision records | 22, plus a template |
 
 Every count in the first six rows can be recomputed from this repository alone, without
 running anything: `dashboard/snapshot/` holds a committed CSV copy of the published
-tables. `docs/quality.md` explains how, and states what is *not* guaranteed.
+tables.
 
 ## Run it
 
-Requires Python 3.11 and [uv](https://docs.astral.sh/uv/). Timings measured on an Apple M3,
-on a clean clone with an empty package cache.
+Requires Python 3.11 and [uv](https://docs.astral.sh/uv/). The timings below come from one
+measured run on an Apple M3 with an empty package cache, not from an average.
 
 ```
 git clone https://github.com/medanouarzaki/payments-batch-platform.git
@@ -86,10 +83,9 @@ make test           # 4 min 34 s, 191 tests
 make nightly        # 8 s on a fresh clone, 12 s once a warehouse exists
 ```
 
-`make nightly` replays the nine steps of the daily pipeline outside any scheduler. On a
-fresh checkout there is no warehouse yet, so it says so and treats the run as day one, which
-is the shorter of the two timings. On a machine that already holds a warehouse it replays
-the most recent day instead, and pays a few seconds more for the incremental work.
+`make nightly` replays the nine steps of the daily pipeline outside any scheduler. A fresh
+checkout has no warehouse, so it says so and treats the run as day one; a machine that
+already holds one replays the most recent day and pays for the incremental work.
 
 To see the result:
 
@@ -109,40 +105,18 @@ GitHub release page. That download is outside the lock file, so a bad minute on 
 the install: I hit a 503 on it once, on a cold start from a clean clone. Running
 `make install` again was enough.
 
-`docs/getting-started.md` walks the same path step by step, with what each one writes and
-what to check when one of them does not behave.
+## Where to read next
 
-For the orchestrated version, the replay commands, and what to do when something breaks,
-see `docs/operations.md`.
+Three documents, in whichever order suits what brought you here.
 
-## Decisions
+- **[Architecture](docs/architecture.md)** — every model, every edge, and what runs where.
+- **[Quality](docs/quality.md)** — what is measured, what is guaranteed, and what is not.
+- **[Getting started](docs/getting-started.md)** — the commands above step by step, with
+  what each one writes and what to check when one misbehaves.
 
-Twenty-two decision records live in `docs/decisions/`, each with the alternatives that were
-rejected and why. The ones that shaped the rest:
-
-- [DuckDB as the warehouse](docs/decisions/0001-use-duckdb-as-the-analytical-warehouse.md)
-  — one file, no server, and the reason that choice constrains everything downstream.
-- [Quarantine invalid rows instead of dropping them](docs/decisions/0005-quarantine-invalid-rows-instead-of-dropping-them.md)
-  — why a rejected row still has to be counted.
-- [Deterministic deduplication with a bounded window](docs/decisions/0006-deterministic-deduplication-with-a-bounded-window.md)
-  — what the window buys, and what it silently excludes.
-- [A separate serving layer](docs/decisions/0010-separate-the-serving-layer-into-its-own-file-and-environment.md)
-  — measured from a lock error, not assumed.
-- [Rebuild after a retroactive rate correction](docs/decisions/0019-rebuild-the-warehouse-after-a-retroactive-rate-correction.md)
-  — what a content fingerprint is for, and what it caught.
-- [Verify each published guarantee by mutation](docs/decisions/0022-verify-each-published-guarantee-by-mutation.md)
-  — two of the eight properties this repository advertised were tested by nothing.
-
-## What is in here
-
-```
-src/payments/     ingestion, generator, rate client, publication
-dbt/              9 models, 2 seeds, 78 tests, 5 macros
-airflow/          the daily DAG and its four scripts
-dashboard/        four views, a local entry point and a public one
-docs/             architecture, data model, quality, operations, decisions
-.github/          six CI jobs, plus a nightly run of the whole chain
-```
+Beyond those: `docs/operations.md` for the orchestrated stack and the replay commands,
+`docs/data-model.md` for the table shapes, and `docs/decisions/` for the record of what was
+chosen and what was rejected — a folder to browse, not a reading list.
 
 ![Data quality](docs/dashboard-quality.png)
 
@@ -152,6 +126,5 @@ A production system. The warehouse is a single file on one machine with no repli
 and no backup; there is no alerting, only exit codes; secrets sit in a local file rather
 than a secret manager; and the rate source has no fallback. The data is synthetic, from a
 seeded generator with deliberately injected defects — realistic in shape, not in origin.
-
 The last section of `docs/operations.md` lists what would have to change, in the order it
 would matter.

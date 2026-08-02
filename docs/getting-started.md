@@ -76,7 +76,7 @@ environment.
 - `docs/operations.md` — the Airflow stack, replaying a day, and what to do when a run
   breaks.
 - `docs/quality.md` — what the numbers are, what is guaranteed, and what is not.
-- `docs/decisions/` — twenty-two records of what was chosen and what was rejected.
+- `docs/decisions/` — a record per decision, with the alternatives that were rejected.
 
 ## When the install fails
 
