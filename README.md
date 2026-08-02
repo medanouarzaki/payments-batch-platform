@@ -102,6 +102,13 @@ It prints that URL rather than opening a browser: `.streamlit/config.toml` pins 
 to headless mode, so a first launch on a machine where Streamlit has never run does not stop
 on its welcome prompt.
 
+`make install` is not hermetic. The lock file records every dependency with its hash, and
+that includes `dbt-core-experimental-parser`, which `dbt-core` pulls in — but that package is
+published as a source distribution only, and building it downloads a prebuilt wheel from a
+GitHub release page. That download is outside the lock file, so a bad minute on GitHub stops
+the install: I hit a 503 on it once, on a cold start from a clean clone. Running
+`make install` again was enough.
+
 `docs/getting-started.md` walks the same path step by step, with what each one writes and
 what to check when one of them does not behave.
 
