@@ -65,9 +65,9 @@ on one machine; the only external dependency is a public exchange rate API.
 | Rows that arrived after their event date | 70,677 |
 | dbt models | 9 |
 | dbt tests | 78 |
-| Python tests | 187, plus 17 for the dashboard |
+| Python tests | 191, plus 17 for the dashboard |
 | Coverage of the pipeline package | 95.4%, with a blocking floor at 90% |
-| Decision records | 20, plus a template |
+| Decision records | 22, plus a template |
 
 Every count in the first six rows can be recomputed from this repository alone, without
 running anything: `dashboard/snapshot/` holds a committed CSV copy of the published
@@ -75,17 +75,21 @@ tables. `docs/quality.md` explains how, and states what is *not* guaranteed.
 
 ## Run it
 
-Requires Python 3.11 and [uv](https://docs.astral.sh/uv/). Timings measured on a clean
-clone with an empty package cache.
+Requires Python 3.11 and [uv](https://docs.astral.sh/uv/). Timings measured on an Apple M3,
+on a clean clone with an empty package cache.
 
 ```
-make install        # 12 s, downloads 763 MB
-make test           # 4 min 39 s, 187 tests
-make nightly        # 9 s, generates and processes one day end to end
+git clone https://github.com/medanouarzaki/payments-batch-platform.git
+cd payments-batch-platform
+make install        # 12 s, 762 MB of downloads
+make test           # 4 min 34 s, 191 tests
+make nightly        # 8 s on a fresh clone, 12 s once a warehouse exists
 ```
 
 `make nightly` replays the nine steps of the daily pipeline outside any scheduler. On a
-fresh checkout there is no warehouse yet, so it says so and treats the run as day one.
+fresh checkout there is no warehouse yet, so it says so and treats the run as day one, which
+is the shorter of the two timings. On a machine that already holds a warehouse it replays
+the most recent day instead, and pays a few seconds more for the incremental work.
 
 To see the result:
 
@@ -94,12 +98,19 @@ make dashboard-install   # 11 s
 make dashboard           # http://localhost:8501
 ```
 
+It prints that URL rather than opening a browser: `.streamlit/config.toml` pins the server
+to headless mode, so a first launch on a machine where Streamlit has never run does not stop
+on its welcome prompt.
+
+`docs/getting-started.md` walks the same path step by step, with what each one writes and
+what to check when one of them does not behave.
+
 For the orchestrated version, the replay commands, and what to do when something breaks,
 see `docs/operations.md`.
 
 ## Decisions
 
-Twenty decision records live in `docs/decisions/`, each with the alternatives that were
+Twenty-two decision records live in `docs/decisions/`, each with the alternatives that were
 rejected and why. The ones that shaped the rest:
 
 - [DuckDB as the warehouse](docs/decisions/0001-use-duckdb-as-the-analytical-warehouse.md)
@@ -112,6 +123,8 @@ rejected and why. The ones that shaped the rest:
   — measured from a lock error, not assumed.
 - [Rebuild after a retroactive rate correction](docs/decisions/0019-rebuild-the-warehouse-after-a-retroactive-rate-correction.md)
   — what a content fingerprint is for, and what it caught.
+- [Verify each published guarantee by mutation](docs/decisions/0022-verify-each-published-guarantee-by-mutation.md)
+  — two of the eight properties this repository advertised were tested by nothing.
 
 ## What is in here
 
