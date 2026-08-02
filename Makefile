@@ -31,7 +31,7 @@ lint-ci:  ## Lint a copy of the tracked and untracked-but-not-ignored files only
 	exit $$status
 
 lint-sql:  ## Lint the dbt models with sqlfluff
-	uv run sqlfluff lint dbt/models
+	uv run sqlfluff lint dbt/models dbt/tests
 
 test:  ## Run the test suite
 	uv run pytest --cov=payments --cov-report=term-missing
