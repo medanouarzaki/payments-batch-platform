@@ -27,8 +27,12 @@ make up
 ```
 
 The first command creates local secrets once: a Postgres password, a Fernet key, and an
-admin user. The second builds the images, migrates the metadata database, and starts the
-scheduler and web server, reachable at `http://localhost:8080`.
+admin user; it runs through `uv`, so `make install` has to have happened first. The second
+builds the images and starts five services: Postgres, a one-shot container that migrates the
+metadata database and creates the admin user and the warehouse pool, the scheduler, the web
+server on `http://localhost:8080`, and the dashboard on `http://localhost:8501`. Once the
+stack has settled, `docker compose ps` lists four of the five: the initialisation container
+has done its work and exited, and `docker compose ps -a` still shows it.
 
 The daily pipeline is created paused and stays paused. Nothing runs until it is
 explicitly unpaused or replayed, which is deliberate: automatic catch-up would replay
@@ -40,6 +44,16 @@ make down
 
 stops the stack and removes the metadata volume, so run history does not survive it. The
 warehouse and the landed partitions live on the host and are unaffected.
+
+### A second checkout on the same machine
+
+Compose derives its project name from the directory it runs in, and nothing here overrides
+that. Two checkouts sitting in directories with the same name are therefore one project as
+far as Compose is concerned: same containers, same network, same metadata volume. Since
+`make down` runs `docker compose down -v`, running it from the second checkout removes the
+first one's metadata volume, and nothing warns you. If a second copy has to run, set
+`COMPOSE_PROJECT_NAME` to something else and keep it set for `make up` and `make down`
+alike.
 
 ## Replaying a range
 
