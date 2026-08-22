@@ -1,3 +1,5 @@
+name: payments-batch-platform
+
 x-airflow-common: &airflow-common
   build:
     context: .
