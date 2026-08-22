@@ -44,18 +44,25 @@ old days against a rate cache that has moved since.
 make down
 ```
 
-stops the stack and removes the metadata volume, so run history does not survive it. The
-warehouse and the landed partitions live on the host and are unaffected.
+stops the stack and removes its containers. **The metadata volume survives**, so run
+history is still there the next time the stack comes up. The warehouse and the landed
+partitions live on the host and are unaffected either way.
+
+Nothing here removes a volume. If the metadata database ever has to be thrown away, do it
+deliberately and name the volume you mean — never through the ordinary stop.
 
 ### A second checkout on the same machine
 
-Compose derives its project name from the directory it runs in, and nothing here overrides
-that. Two checkouts sitting in directories with the same name are therefore one project as
-far as Compose is concerned: same containers, same network, same metadata volume. Since
-`make down` runs `docker compose down -v`, running it from the second checkout removes the
-first one's metadata volume, and nothing warns you. If a second copy has to run, set
-`COMPOSE_PROJECT_NAME` to something else and keep it set for `make up` and `make down`
-alike.
+`docker-compose.yml` fixes the project name, so it no longer follows the directory. That
+makes the name stable across a move or a rename — and it also means **any** second checkout
+is the same project as far as Compose is concerned, whatever directory it sits in: same
+containers, same network, same metadata volume. Bringing the stack up from the second
+checkout takes the first one's containers over.
+
+It no longer destroys anything — `make down` leaves volumes alone — but two checkouts still
+fight over one stack. If a second copy has to run, set `COMPOSE_PROJECT_NAME` to something
+else and keep it set for `make up` and `make down` alike; the environment variable takes
+precedence over the name in the file.
 
 ## Replaying a range
 

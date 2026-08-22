@@ -74,8 +74,8 @@ nightly:  ## Replay a full day of the DAG outside Airflow (usage: make nightly [
 up:  ## Start the local stack
 	docker compose up -d
 
-down:  ## Stop the local stack and remove volumes
-	docker compose down -v
+down:  ## Stop the local stack; volumes and their data survive
+	docker compose down
 
 clean:  ## Remove generated data, caches and build artifacts
 	rm -rf data/raw data/serving data/warehouse.duckdb
