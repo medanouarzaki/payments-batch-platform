@@ -30,9 +30,11 @@ The first command creates local secrets once: a Postgres password, a Fernet key,
 admin user; it runs through `uv`, so `make install` has to have happened first. The second
 builds the images and starts five services: Postgres, a one-shot container that migrates the
 metadata database and creates the admin user and the warehouse pool, the scheduler, the web
-server on `http://localhost:8080`, and the dashboard on `http://localhost:8501`. Once the
-stack has settled, `docker compose ps` lists four of the five: the initialisation container
-has done its work and exited, and `docker compose ps -a` still shows it.
+server on `http://localhost:8080`, and the dashboard on the port `STREAMLIT_PORT` names —
+`http://localhost:8502` by default, and not 8501, because another Streamlit project may
+already hold that port. Once the stack has settled, `docker compose ps` lists four of the
+five: the initialisation container has done its work and exited, and `docker compose ps -a`
+still shows it.
 
 The daily pipeline is created paused and stays paused. Nothing runs until it is
 explicitly unpaused or replayed, which is deliberate: automatic catch-up would replay

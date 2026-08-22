@@ -138,7 +138,7 @@ init-env:  ## Generate a local .env with random Postgres and Airflow secrets
 		echo ".env already exists; remove it by hand before regenerating secrets" >&2; \
 		exit 1; \
 	fi
-	@AIRFLOW_UID=$$(id -u) uv run python -c "import os, secrets, base64; lines = ['POSTGRES_DB=airflow', 'POSTGRES_USER=airflow', f'POSTGRES_PASSWORD={secrets.token_urlsafe(24)}', f'AIRFLOW_FERNET_KEY={base64.urlsafe_b64encode(os.urandom(32)).decode()}', 'AIRFLOW_ADMIN_USER=airflow', f'AIRFLOW_ADMIN_PASSWORD={secrets.token_urlsafe(24)}', f'AIRFLOW_UID={os.environ[\"AIRFLOW_UID\"]}']; open('.env', 'w').write('\n'.join(lines) + '\n')"
+	@AIRFLOW_UID=$$(id -u) uv run python -c "import os, secrets, base64; lines = ['POSTGRES_DB=airflow', 'POSTGRES_USER=airflow', f'POSTGRES_PASSWORD={secrets.token_urlsafe(24)}', f'AIRFLOW_FERNET_KEY={base64.urlsafe_b64encode(os.urandom(32)).decode()}', 'AIRFLOW_ADMIN_USER=airflow', f'AIRFLOW_ADMIN_PASSWORD={secrets.token_urlsafe(24)}', f'AIRFLOW_UID={os.environ[\"AIRFLOW_UID\"]}', 'STREAMLIT_PORT=8502']; open('.env', 'w').write('\n'.join(lines) + '\n')"
 
 backfill:  ## Backfill payments_daily for a date range (usage: make backfill FROM=YYYY-MM-DD TO=YYYY-MM-DD [DRY_RUN=1] [RESET=1])
 ifndef FROM
