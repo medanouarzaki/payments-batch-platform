@@ -95,7 +95,7 @@ services:
       dockerfile: docker/dashboard/Dockerfile
     image: payments-dashboard:local
     ports:
-      - "8501:8501"
+      - "${STREAMLIT_PORT}:8501"
     volumes:
       - ./data/serving:/srv:ro
     command:
